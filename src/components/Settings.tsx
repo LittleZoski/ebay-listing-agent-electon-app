@@ -57,6 +57,21 @@ interface GlobalSettings {
   yamiTier6Multiplier: number
   yamiTier7Multiplier: number
 
+  // Costco Pricing Tiers
+  costcoTier1MaxPrice: number
+  costcoTier1Multiplier: number
+  costcoTier2MaxPrice: number
+  costcoTier2Multiplier: number
+  costcoTier3MaxPrice: number
+  costcoTier3Multiplier: number
+  costcoTier4MaxPrice: number
+  costcoTier4Multiplier: number
+  costcoTier5MaxPrice: number
+  costcoTier5Multiplier: number
+  costcoTier6MaxPrice: number
+  costcoTier6Multiplier: number
+  costcoTier7Multiplier: number
+
   // Charm Pricing Strategy
   charmPricingStrategy: 'always_99' | 'always_49' | 'tiered'
 
@@ -514,6 +529,68 @@ export function Settings() {
             label="Tier 7 (Premium)"
             multiplier={localSettings.yamiTier7Multiplier}
             onMultiplierChange={(v) => updateField('yamiTier7Multiplier', v)}
+            isLastTier
+          />
+        </div>
+      </SettingsSection>
+
+      {/* Costco Pricing Tiers Section */}
+      <SettingsSection
+        title="Costco Pricing Tiers"
+        icon={<DollarSign className="w-5 h-5" />}
+        isExpanded={expandedSections.has('costcoPricing')}
+        onToggle={() => toggleSection('costcoPricing')}
+      >
+        <p className="text-sm text-gray-500 mb-4">
+          Configure price multipliers for Costco products (warehouse club items).
+        </p>
+        <div className="space-y-3">
+          <PricingTierRow
+            label="Tier 1 (Ultra-low)"
+            maxPrice={localSettings.costcoTier1MaxPrice}
+            multiplier={localSettings.costcoTier1Multiplier}
+            onMaxPriceChange={(v) => updateField('costcoTier1MaxPrice', v)}
+            onMultiplierChange={(v) => updateField('costcoTier1Multiplier', v)}
+          />
+          <PricingTierRow
+            label="Tier 2 (Low)"
+            maxPrice={localSettings.costcoTier2MaxPrice}
+            multiplier={localSettings.costcoTier2Multiplier}
+            onMaxPriceChange={(v) => updateField('costcoTier2MaxPrice', v)}
+            onMultiplierChange={(v) => updateField('costcoTier2Multiplier', v)}
+          />
+          <PricingTierRow
+            label="Tier 3 (Low-mid)"
+            maxPrice={localSettings.costcoTier3MaxPrice}
+            multiplier={localSettings.costcoTier3Multiplier}
+            onMaxPriceChange={(v) => updateField('costcoTier3MaxPrice', v)}
+            onMultiplierChange={(v) => updateField('costcoTier3Multiplier', v)}
+          />
+          <PricingTierRow
+            label="Tier 4 (Mid)"
+            maxPrice={localSettings.costcoTier4MaxPrice}
+            multiplier={localSettings.costcoTier4Multiplier}
+            onMaxPriceChange={(v) => updateField('costcoTier4MaxPrice', v)}
+            onMultiplierChange={(v) => updateField('costcoTier4Multiplier', v)}
+          />
+          <PricingTierRow
+            label="Tier 5 (Mid-high)"
+            maxPrice={localSettings.costcoTier5MaxPrice}
+            multiplier={localSettings.costcoTier5Multiplier}
+            onMaxPriceChange={(v) => updateField('costcoTier5MaxPrice', v)}
+            onMultiplierChange={(v) => updateField('costcoTier5Multiplier', v)}
+          />
+          <PricingTierRow
+            label="Tier 6 (High)"
+            maxPrice={localSettings.costcoTier6MaxPrice}
+            multiplier={localSettings.costcoTier6Multiplier}
+            onMaxPriceChange={(v) => updateField('costcoTier6MaxPrice', v)}
+            onMultiplierChange={(v) => updateField('costcoTier6Multiplier', v)}
+          />
+          <PricingTierRow
+            label="Tier 7 (Premium)"
+            multiplier={localSettings.costcoTier7Multiplier}
+            onMultiplierChange={(v) => updateField('costcoTier7Multiplier', v)}
             isLastTier
           />
         </div>

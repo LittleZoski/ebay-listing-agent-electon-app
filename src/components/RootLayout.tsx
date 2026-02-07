@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
-import { LayoutDashboard, MessageSquare, Settings } from 'lucide-react'
+import { LayoutDashboard, MessageSquare, Settings, List } from 'lucide-react'
 
 export function RootLayout() {
   const routerState = useRouterState()
@@ -22,6 +22,12 @@ export function RootLayout() {
             icon={<LayoutDashboard className="w-5 h-5" />}
             label="Dashboard"
             active={currentPath === '/'}
+          />
+          <NavLink
+            to="/listings"
+            icon={<List className="w-5 h-5" />}
+            label="Listings"
+            active={currentPath === '/listings'}
           />
           <NavLink
             to="/chat"

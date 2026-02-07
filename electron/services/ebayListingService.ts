@@ -521,6 +521,7 @@ export class EbayListingService {
         title: optimization.optimizedTitle,
         description: processed.description,
         bulletPoints: processed.bulletPoints,
+        bulletPointImages: processed.bulletPointImages,
         images: processed.images,
         specifications: processed.specifications,
       })

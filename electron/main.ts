@@ -10,6 +10,12 @@ import { getCategoryCache } from './services/categoryCache'
 import { getVectorCategoryDB } from './services/vectorCategoryDB'
 import { EbayListingService, ListingResult } from './services/ebayListingService'
 import { EbayOrderService, FetchOrdersResult, EbayOrder, OrderExport } from './services/ebayOrderService'
+import {
+  EbayListingManagementService,
+  FetchListingsResult,
+  ListingDataExport,
+  ListingSnapshot,
+} from './services/ebayListingManagementService'
 import type { GlobalSettings as ServiceGlobalSettings } from './services/productMapper'
 
 // ===== App Data Directory =====
@@ -128,6 +134,21 @@ interface GlobalSettings {
   yamiTier6Multiplier: number
   yamiTier7Multiplier: number
 
+  // Costco Pricing Tiers (7 tiers)
+  costcoTier1MaxPrice: number
+  costcoTier1Multiplier: number
+  costcoTier2MaxPrice: number
+  costcoTier2Multiplier: number
+  costcoTier3MaxPrice: number
+  costcoTier3Multiplier: number
+  costcoTier4MaxPrice: number
+  costcoTier4Multiplier: number
+  costcoTier5MaxPrice: number
+  costcoTier5Multiplier: number
+  costcoTier6MaxPrice: number
+  costcoTier6Multiplier: number
+  costcoTier7Multiplier: number
+
   // Charm Pricing Strategy
   charmPricingStrategy: 'always_99' | 'always_49' | 'tiered'
 
@@ -193,6 +214,21 @@ function getDefaultGlobalSettings(): GlobalSettings {
     yamiTier6MaxPrice: 50,
     yamiTier6Multiplier: 1.85,
     yamiTier7Multiplier: 1.75,
+
+    // Costco Pricing Tiers (warehouse club pricing)
+    costcoTier1MaxPrice: 15,
+    costcoTier1Multiplier: 2.2,
+    costcoTier2MaxPrice: 25,
+    costcoTier2Multiplier: 2.0,
+    costcoTier3MaxPrice: 40,
+    costcoTier3Multiplier: 1.85,
+    costcoTier4MaxPrice: 60,
+    costcoTier4Multiplier: 1.7,
+    costcoTier5MaxPrice: 80,
+    costcoTier5Multiplier: 1.6,
+    costcoTier6MaxPrice: 100,
+    costcoTier6Multiplier: 1.5,
+    costcoTier7Multiplier: 1.4,
 
     // Charm Pricing Strategy
     charmPricingStrategy: 'always_99',
@@ -931,6 +967,157 @@ ipcMain.handle('list-order-exports', async (_event: Electron.IpcMainInvokeEvent,
   }
 })
 
+// ===== Listing Management IPC Handlers =====
+
+// Fetch all listings for an account
+ipcMain.handle('fetch-listings', async (
+  _event: Electron.IpcMainInvokeEvent,
+  accountId?: string
+): Promise<FetchListingsResult> => {
+  const data = loadAccounts()
+  const targetAccountId = accountId || activeAccountId
+
+  if (!targetAccountId) {
+    throw new Error('No account specified')
+  }
+
+  const account = data.accounts.find(a => a.id === targetAccountId)
+  if (!account) {
+    throw new Error('Account not found')
+  }
+
+  if (!account.isAuthorized) {
+    throw new Error('Account is not authorized')
+  }
+
+  // Create listing management service
+  const listingService = new EbayListingManagementService(
+    {
+      id: account.id,
+      ebayAppId: account.ebayAppId,
+      ebayCertId: account.ebayCertId,
+      ebayEnvironment: account.ebayEnvironment,
+      tokenFile: account.tokenFile,
+    },
+    account.name
+  )
+
+  // Set up progress callback to send updates to UI
+  listingService.setProgressCallback((progress) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('listings-progress', progress)
+    }
+  })
+
+  // Fetch listings
+  const result = await listingService.fetchAllListings()
+
+  // Send completion event to UI
+  if (mainWindow && result.success) {
+    mainWindow.webContents.send('listings-fetched', {
+      accountName: result.accountName,
+      totalListings: result.totalListings,
+      newListings: result.newListings,
+      updatedListings: result.updatedListings,
+    })
+  }
+
+  return result
+})
+
+// Get stored listings from last fetch
+ipcMain.handle('get-stored-listings', async (
+  _event: Electron.IpcMainInvokeEvent,
+  accountId?: string
+): Promise<ListingDataExport | null> => {
+  const data = loadAccounts()
+  const targetAccountId = accountId || activeAccountId
+
+  if (!targetAccountId) {
+    return null
+  }
+
+  const account = data.accounts.find(a => a.id === targetAccountId)
+  if (!account) {
+    return null
+  }
+
+  const listingService = new EbayListingManagementService(
+    {
+      id: account.id,
+      ebayAppId: account.ebayAppId,
+      ebayCertId: account.ebayCertId,
+      ebayEnvironment: account.ebayEnvironment,
+      tokenFile: account.tokenFile,
+    },
+    account.name
+  )
+
+  return listingService.getStoredListings()
+})
+
+// Get listing history for performance tracking
+ipcMain.handle('get-listing-history', async (
+  _event: Electron.IpcMainInvokeEvent,
+  accountId: string,
+  listingId?: string,
+  dateRange?: { start: string; end: string }
+): Promise<ListingSnapshot[]> => {
+  const data = loadAccounts()
+  const account = data.accounts.find(a => a.id === accountId)
+
+  if (!account) {
+    return []
+  }
+
+  const listingService = new EbayListingManagementService(
+    {
+      id: account.id,
+      ebayAppId: account.ebayAppId,
+      ebayCertId: account.ebayCertId,
+      ebayEnvironment: account.ebayEnvironment,
+      tokenFile: account.tokenFile,
+    },
+    account.name
+  )
+
+  return listingService.getListingHistory(listingId, dateRange)
+})
+
+// List exported listing files
+ipcMain.handle('list-listing-exports', async (
+  _event: Electron.IpcMainInvokeEvent,
+  accountId?: string
+): Promise<{ files: string[]; folder: string }> => {
+  const data = loadAccounts()
+  const targetAccountId = accountId || activeAccountId
+
+  if (!targetAccountId) {
+    return { files: [], folder: '' }
+  }
+
+  const account = data.accounts.find(a => a.id === targetAccountId)
+  if (!account) {
+    return { files: [], folder: '' }
+  }
+
+  const listingService = new EbayListingManagementService(
+    {
+      id: account.id,
+      ebayAppId: account.ebayAppId,
+      ebayCertId: account.ebayCertId,
+      ebayEnvironment: account.ebayEnvironment,
+      tokenFile: account.tokenFile,
+    },
+    account.name
+  )
+
+  return {
+    files: listingService.listExportedListingFiles(),
+    folder: listingService.getOutputFolder(),
+  }
+})
+
 // Helper function to stop Python process
 function stopPythonProcess(): { success: boolean; message: string } {
   if (pythonProcess) {
@@ -1008,6 +1195,19 @@ async function processJsonFile(
       yamiTier6MaxPrice: globalSettings.yamiTier6MaxPrice,
       yamiTier6Multiplier: globalSettings.yamiTier6Multiplier,
       yamiTier7Multiplier: globalSettings.yamiTier7Multiplier,
+      costcoTier1MaxPrice: globalSettings.costcoTier1MaxPrice,
+      costcoTier1Multiplier: globalSettings.costcoTier1Multiplier,
+      costcoTier2MaxPrice: globalSettings.costcoTier2MaxPrice,
+      costcoTier2Multiplier: globalSettings.costcoTier2Multiplier,
+      costcoTier3MaxPrice: globalSettings.costcoTier3MaxPrice,
+      costcoTier3Multiplier: globalSettings.costcoTier3Multiplier,
+      costcoTier4MaxPrice: globalSettings.costcoTier4MaxPrice,
+      costcoTier4Multiplier: globalSettings.costcoTier4Multiplier,
+      costcoTier5MaxPrice: globalSettings.costcoTier5MaxPrice,
+      costcoTier5Multiplier: globalSettings.costcoTier5Multiplier,
+      costcoTier6MaxPrice: globalSettings.costcoTier6MaxPrice,
+      costcoTier6Multiplier: globalSettings.costcoTier6Multiplier,
+      costcoTier7Multiplier: globalSettings.costcoTier7Multiplier,
       charmPricingStrategy: globalSettings.charmPricingStrategy,
       defaultInventoryQuantity: globalSettings.defaultInventoryQuantity,
     }

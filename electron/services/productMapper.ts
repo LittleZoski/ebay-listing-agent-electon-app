@@ -37,6 +37,21 @@ export interface GlobalSettings {
   yamiTier6Multiplier: number
   yamiTier7Multiplier: number
 
+  // Costco Pricing Tiers
+  costcoTier1MaxPrice: number
+  costcoTier1Multiplier: number
+  costcoTier2MaxPrice: number
+  costcoTier2Multiplier: number
+  costcoTier3MaxPrice: number
+  costcoTier3Multiplier: number
+  costcoTier4MaxPrice: number
+  costcoTier4Multiplier: number
+  costcoTier5MaxPrice: number
+  costcoTier5Multiplier: number
+  costcoTier6MaxPrice: number
+  costcoTier6Multiplier: number
+  costcoTier7Multiplier: number
+
   // Charm Pricing Strategy
   charmPricingStrategy: 'always_99' | 'always_49' | 'tiered'
 
@@ -89,6 +104,18 @@ function buildPricingTiers(settings: GlobalSettings, source: string): PricingTie
       { maxPrice: settings.yamiTier5MaxPrice, multiplier: settings.yamiTier5Multiplier },
       { maxPrice: settings.yamiTier6MaxPrice, multiplier: settings.yamiTier6Multiplier },
       { maxPrice: Infinity, multiplier: settings.yamiTier7Multiplier },
+    ]
+  }
+
+  if (source === 'costco') {
+    return [
+      { maxPrice: settings.costcoTier1MaxPrice, multiplier: settings.costcoTier1Multiplier },
+      { maxPrice: settings.costcoTier2MaxPrice, multiplier: settings.costcoTier2Multiplier },
+      { maxPrice: settings.costcoTier3MaxPrice, multiplier: settings.costcoTier3Multiplier },
+      { maxPrice: settings.costcoTier4MaxPrice, multiplier: settings.costcoTier4Multiplier },
+      { maxPrice: settings.costcoTier5MaxPrice, multiplier: settings.costcoTier5Multiplier },
+      { maxPrice: settings.costcoTier6MaxPrice, multiplier: settings.costcoTier6Multiplier },
+      { maxPrice: Infinity, multiplier: settings.costcoTier7Multiplier },
     ]
   }
 
@@ -331,15 +358,51 @@ export function parseWeight(
 }
 
 /**
+ * Extract images embedded in bullet points (Costco format: "[IMAGE]: url")
+ * Returns object with clean bullet points and extracted image URLs
+ */
+export function extractBulletPointImages(bulletPoints: string[]): {
+  cleanBulletPoints: string[]
+  bulletPointImages: string[]
+} {
+  const cleanBulletPoints: string[] = []
+  const bulletPointImages: string[] = []
+  const imagePattern = /^\[IMAGE\]:\s*(.+)$/i
+
+  for (const bullet of bulletPoints) {
+    const match = bullet.trim().match(imagePattern)
+    if (match) {
+      // This is an image URL, extract it
+      const imageUrl = match[1].trim()
+      if (imageUrl && !bulletPointImages.includes(imageUrl)) {
+        bulletPointImages.push(imageUrl)
+      }
+    } else if (bullet.trim()) {
+      // This is a regular bullet point
+      cleanBulletPoints.push(bullet.trim())
+    }
+  }
+
+  return { cleanBulletPoints, bulletPointImages }
+}
+
+/**
  * Build HTML description for eBay listing
  */
 export function buildHtmlDescription(product: {
   title: string
   description: string
   bulletPoints: string[]
+  bulletPointImages?: string[]
   images: string[]
   specifications: Record<string, string>
 }): string {
+  // Use pre-extracted bullet point images if provided, otherwise extract from bullet points
+  const bulletPointImages = product.bulletPointImages ?? extractBulletPointImages(product.bulletPoints).bulletPointImages
+  const bulletPoints = product.bulletPointImages
+    ? product.bulletPoints // Already cleaned if bulletPointImages was pre-extracted
+    : extractBulletPointImages(product.bulletPoints).cleanBulletPoints
+
   const htmlParts: string[] = [
     '<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">',
     `<h2 style="color: #333;">${escapeHtml(product.title)}</h2>`,
@@ -354,11 +417,11 @@ export function buildHtmlDescription(product: {
     )
   }
 
-  // Add bullet points
-  if (product.bulletPoints.length > 0) {
+  // Add bullet points (cleaned, without image entries)
+  if (bulletPoints.length > 0) {
     htmlParts.push('<h3 style="color: #555;">Key Features:</h3>')
     htmlParts.push('<ul style="line-height: 1.8;">')
-    for (const bullet of product.bulletPoints.slice(0, 10)) {
+    for (const bullet of bulletPoints.slice(0, 10)) {
       if (bullet.trim()) {
         htmlParts.push(`<li>${escapeHtml(bullet.trim())}</li>`)
       }
@@ -388,6 +451,18 @@ export function buildHtmlDescription(product: {
       )
     }
     htmlParts.push('</table>')
+  }
+
+  // Add bullet point images (from Costco products) in a gallery section
+  if (bulletPointImages.length > 0) {
+    htmlParts.push('<h3 style="color: #555;">See It In Detail:</h3>')
+    for (const imgUrl of bulletPointImages) {
+      htmlParts.push(
+        `<div style="text-align: center; margin: 15px 0;">` +
+          `<img src="${imgUrl}" alt="Product Detail" style="max-width: 100%; height: auto;" />` +
+          `</div>`
+      )
+    }
   }
 
   // Add shipping note
@@ -427,6 +502,7 @@ export function processProduct(
   title: string
   description: string
   bulletPoints: string[]
+  bulletPointImages: string[]
   images: string[]
   specifications: Record<string, string>
   brand: string
@@ -436,12 +512,16 @@ export function processProduct(
   multiplierUsed: number
   weight: { value: string; unit: 'POUND' } | null
   violations: string[]
+  source?: string
 } {
-  // Sanitize product data first
+  // Extract images from raw bullet points BEFORE sanitization strips the URLs
+  const { cleanBulletPoints, bulletPointImages } = extractBulletPointImages(product.bulletPoints || [])
+
+  // Sanitize product data (using clean bullet points without image entries)
   const sanitized = sanitizeProductData({
     title: product.title,
     description: product.description,
-    bulletPoints: product.bulletPoints,
+    bulletPoints: cleanBulletPoints,
     specifications: product.specifications,
   })
 
@@ -483,6 +563,7 @@ export function processProduct(
     title: truncateTitle(sanitized.title),
     description,
     bulletPoints: sanitized.bulletPoints,
+    bulletPointImages,
     images: images.slice(0, 12), // eBay limit
     specifications: sanitized.specifications,
     brand,
@@ -492,5 +573,6 @@ export function processProduct(
     multiplierUsed,
     weight: weight || { value: '1.0', unit: 'POUND' }, // Default weight
     violations: sanitized.violations,
+    source: product.source,
   }
 }
