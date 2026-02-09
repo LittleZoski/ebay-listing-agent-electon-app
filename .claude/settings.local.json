@@ -12,7 +12,12 @@
       "Bash(npm info:*)",
       "Read(//c/Users/31243/ebay-listing-app/**)",
       "Bash(git init:*)",
-      "Bash(git remote add:*)"
+      "Bash(git remote add:*)",
+      "WebFetch(domain:sdk.vercel.ai)",
+      "WebFetch(domain:js.langchain.com)",
+      "WebFetch(domain:docs.langchain.com)",
+      "WebFetch(domain:latenode.com)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

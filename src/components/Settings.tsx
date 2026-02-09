@@ -174,8 +174,8 @@ export function Settings() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Settings</h2>
-          <p className="text-gray-500">Configure global application settings</p>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Settings</h2>
+          <p className="text-gray-500 dark:text-slate-400">Configure global application settings</p>
         </div>
         <button
           onClick={saveAllSettings}
@@ -200,7 +200,7 @@ export function Settings() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               Anthropic API Key (Claude)
             </label>
             <input
@@ -208,11 +208,11 @@ export function Settings() {
               value={localSettings.anthropicApiKey}
               onChange={(e) => updateField('anthropicApiKey', e.target.value)}
               placeholder="sk-ant-api03-..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
               Required for AI-powered category selection and title optimization.
-              Get your key from <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">console.anthropic.com</a>
+              Get your key from <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">console.anthropic.com</a>
             </p>
           </div>
         </div>
@@ -227,7 +227,7 @@ export function Settings() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               Watch Folder
             </label>
             <input
@@ -235,47 +235,47 @@ export function Settings() {
               value={localSettings.watchFolder}
               onChange={(e) => updateField('watchFolder', e.target.value)}
               placeholder="c:\Users\...\Downloads"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
               Folder to watch for Amazon product JSON files
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Processed Folder
               </label>
               <input
                 type="text"
                 value={localSettings.processedFolder}
                 onChange={(e) => updateField('processedFolder', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Failed Folder
               </label>
               <input
                 type="text"
                 value={localSettings.failedFolder}
                 onChange={(e) => updateField('failedFolder', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               Orders Export Folder
             </label>
             <input
               type="text"
               value={localSettings.ordersExportFolder}
               onChange={(e) => updateField('ordersExportFolder', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
               Folder where fetched eBay orders will be saved as JSON files
             </p>
           </div>
@@ -292,7 +292,7 @@ export function Settings() {
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Max Workers
               </label>
               <input
@@ -301,11 +301,11 @@ export function Settings() {
                 onChange={(e) => updateField('maxWorkers', parseInt(e.target.value) || 1)}
                 min={1}
                 max={10}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Timeout (seconds)
               </label>
               <input
@@ -313,11 +313,11 @@ export function Settings() {
                 value={localSettings.processingTimeoutSeconds}
                 onChange={(e) => updateField('processingTimeoutSeconds', parseInt(e.target.value) || 1800)}
                 min={60}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Category Candidates
               </label>
               <input
@@ -326,7 +326,7 @@ export function Settings() {
                 onChange={(e) => updateField('categoryCandidatesTopK', parseInt(e.target.value) || 3)}
                 min={1}
                 max={10}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -336,9 +336,9 @@ export function Settings() {
               id="parallelProcessing"
               checked={localSettings.useParallelProcessing}
               onChange={(e) => updateField('useParallelProcessing', e.target.checked)}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600"
             />
-            <label htmlFor="parallelProcessing" className="text-sm text-gray-700">
+            <label htmlFor="parallelProcessing" className="text-sm text-gray-700 dark:text-slate-300">
               Enable parallel processing (faster but uses more API calls)
             </label>
           </div>
@@ -355,24 +355,24 @@ export function Settings() {
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Default Category ID
               </label>
               <input
                 type="text"
                 value={localSettings.defaultCategoryId}
                 onChange={(e) => updateField('defaultCategoryId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Default Marketplace
               </label>
               <select
                 value={localSettings.defaultMarketplace}
                 onChange={(e) => updateField('defaultMarketplace', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="EBAY_US">EBAY_US</option>
                 <option value="EBAY_UK">EBAY_UK</option>
@@ -381,7 +381,7 @@ export function Settings() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Default Quantity
               </label>
               <input
@@ -389,18 +389,18 @@ export function Settings() {
                 value={localSettings.defaultInventoryQuantity}
                 onChange={(e) => updateField('defaultInventoryQuantity', parseInt(e.target.value) || 1)}
                 min={1}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               Charm Pricing Strategy
             </label>
             <select
               value={localSettings.charmPricingStrategy}
               onChange={(e) => updateField('charmPricingStrategy', e.target.value as GlobalSettings['charmPricingStrategy'])}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="always_99">Always .99 (e.g., $23.99)</option>
               <option value="always_49">Always .49 (e.g., $23.49)</option>
@@ -417,7 +417,7 @@ export function Settings() {
         isExpanded={expandedSections.has('amazonPricing')}
         onToggle={() => toggleSection('amazonPricing')}
       >
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
           Configure price multipliers for Amazon products. Lower price items typically have higher multipliers.
         </p>
         <div className="space-y-3">
@@ -479,7 +479,7 @@ export function Settings() {
         isExpanded={expandedSections.has('yamiPricing')}
         onToggle={() => toggleSection('yamiPricing')}
       >
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
           Configure price multipliers for Yami products (Asian specialty items).
         </p>
         <div className="space-y-3">
@@ -541,7 +541,7 @@ export function Settings() {
         isExpanded={expandedSections.has('costcoPricing')}
         onToggle={() => toggleSection('costcoPricing')}
       >
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
           Configure price multipliers for Costco products (warehouse club items).
         </p>
         <div className="space-y-3">
@@ -614,19 +614,19 @@ function SettingsSection({
   children: React.ReactNode
 }) {
   return (
-    <section className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden transition-colors">
       <button
         onClick={onToggle}
-        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div className="text-gray-600">{icon}</div>
-          <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
+          <div className="text-gray-600 dark:text-slate-400">{icon}</div>
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{title}</h3>
         </div>
         {isExpanded ? (
-          <ChevronUp className="w-5 h-5 text-gray-400" />
+          <ChevronUp className="w-5 h-5 text-gray-400 dark:text-slate-500" />
         ) : (
-          <ChevronDown className="w-5 h-5 text-gray-400" />
+          <ChevronDown className="w-5 h-5 text-gray-400 dark:text-slate-500" />
         )}
       </button>
       {isExpanded && <div className="px-6 pb-6">{children}</div>}
@@ -652,31 +652,31 @@ function PricingTierRow({
 }) {
   return (
     <div className="flex items-center gap-4">
-      <div className="w-32 text-sm font-medium text-gray-700">{label}</div>
+      <div className="w-32 text-sm font-medium text-gray-700 dark:text-slate-300">{label}</div>
       {!isLastTier && onMaxPriceChange ? (
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">Up to $</span>
+          <span className="text-sm text-gray-500 dark:text-slate-400">Up to $</span>
           <input
             type="number"
             value={maxPrice}
             onChange={(e) => onMaxPriceChange(parseFloat(e.target.value) || 0)}
-            className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            className="w-20 px-2 py-1 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           />
         </div>
       ) : (
-        <div className="w-28 text-sm text-gray-500">Above all tiers</div>
+        <div className="w-28 text-sm text-gray-500 dark:text-slate-400">Above all tiers</div>
       )}
       <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-500">Multiplier:</span>
+        <span className="text-sm text-gray-500 dark:text-slate-400">Multiplier:</span>
         <input
           type="number"
           value={multiplier}
           onChange={(e) => onMultiplierChange(parseFloat(e.target.value) || 1)}
           step={0.05}
           min={1}
-          className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          className="w-20 px-2 py-1 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
         />
-        <span className="text-sm text-gray-500">x</span>
+        <span className="text-sm text-gray-500 dark:text-slate-400">x</span>
       </div>
     </div>
   )

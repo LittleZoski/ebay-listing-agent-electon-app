@@ -259,14 +259,14 @@ export function Dashboard() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-800">Dashboard</h2>
-        <p className="text-gray-500">Manage your eBay accounts and automation</p>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Dashboard</h2>
+        <p className="text-gray-500 dark:text-slate-400">Manage your eBay accounts and automation</p>
       </div>
 
       {/* Accounts Section */}
-      <section className="bg-white rounded-xl border border-gray-200 p-6">
+      <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6 transition-colors">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800">eBay Accounts</h3>
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">eBay Accounts</h3>
           <button
             onClick={() => setShowAddAccount(true)}
             className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
@@ -277,12 +277,12 @@ export function Dashboard() {
         </div>
 
         {accountsLoading ? (
-          <div className="flex items-center gap-2 text-gray-500">
+          <div className="flex items-center gap-2 text-gray-500 dark:text-slate-400">
             <Loader2 className="w-5 h-5 animate-spin" />
             Loading accounts...
           </div>
         ) : accounts.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">
+          <p className="text-gray-500 dark:text-slate-400 text-center py-8">
             No accounts yet. Add one to get started.
           </p>
         ) : (
@@ -326,9 +326,9 @@ export function Dashboard() {
         {/* Authorization Modal */}
         {authorizingAccountId && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4">
-              <h3 className="text-lg font-semibold mb-4">Complete Authorization</h3>
-              <p className="text-sm text-gray-600 mb-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 max-w-lg w-full mx-4">
+              <h3 className="text-lg font-semibold mb-4 dark:text-white">Complete Authorization</h3>
+              <p className="text-sm text-gray-600 dark:text-slate-300 mb-4">
                 1. A browser window opened for eBay login.<br />
                 2. Log in with the eBay account you want to authorize.<br />
                 3. After authorization, you'll be redirected. Copy the <strong>entire URL</strong> from your browser and paste it below.
@@ -338,7 +338,7 @@ export function Dashboard() {
                 value={callbackUrl}
                 onChange={(e) => setCallbackUrl(e.target.value)}
                 placeholder="Paste the redirect URL here..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <div className="flex justify-end gap-2">
                 <button
@@ -346,7 +346,7 @@ export function Dashboard() {
                     setAuthorizingAccountId(null)
                     setCallbackUrl('')
                   }}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                  className="px-4 py-2 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg"
                 >
                   Cancel
                 </button>
@@ -370,27 +370,27 @@ export function Dashboard() {
       </section>
 
       {/* File Watcher Section */}
-      <section className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-2">File Watcher</h3>
-        <p className="text-sm text-gray-500 mb-4">
+      <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6 transition-colors">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">File Watcher</h3>
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
           Monitors your Downloads folder for Amazon product JSON files and automatically creates eBay listings.
         </p>
 
         {/* Selected Account Display */}
         {activeAccount && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-2 text-blue-800">
+          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-800 dark:text-blue-300">
               <Radio className="w-4 h-4" />
               <span className="text-sm font-medium">
                 Selected Account: <strong>{activeAccount.name}</strong>
                 {activeAccount.isAuthorized ? (
-                  <span className="text-green-600 ml-2">(Authorized)</span>
+                  <span className="text-green-600 dark:text-green-400 ml-2">(Authorized)</span>
                 ) : (
-                  <span className="text-red-600 ml-2">(Not Authorized)</span>
+                  <span className="text-red-600 dark:text-red-400 ml-2">(Not Authorized)</span>
                 )}
               </span>
             </div>
-            <p className="text-xs text-blue-600 mt-1">
+            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
               File watcher will create listings for this account.
             </p>
           </div>
@@ -443,20 +443,20 @@ export function Dashboard() {
       </section>
 
       {/* Fetch Orders Section */}
-      <section className="bg-white rounded-xl border border-gray-200 p-6">
+      <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6 transition-colors">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-lg font-semibold text-gray-800">Fetch Orders</h3>
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Fetch Orders</h3>
           {fetchedOrders && fetchedOrders.orders.length > 0 && (
             <button
               onClick={() => setShowOrdersModal(true)}
-              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+              className="flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
             >
               <Package className="w-4 h-4" />
               View {fetchedOrders.orders.length} Orders
             </button>
           )}
         </div>
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
           Fetch unshipped orders from eBay for the selected account.
         </p>
 
@@ -488,18 +488,18 @@ export function Dashboard() {
 
         {/* Quick summary when orders are loaded */}
         {fetchedOrders && fetchedOrders.orders.length > 0 && (
-          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-center gap-2 text-green-800">
+          <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg">
+            <div className="flex items-center gap-2 text-green-800 dark:text-green-300">
               <Package className="w-4 h-4" />
               <span className="font-medium">{fetchedOrders.orders.length} unshipped orders</span>
-              <span className="text-green-600">for {fetchedOrders.accountName}</span>
+              <span className="text-green-600 dark:text-green-400">for {fetchedOrders.accountName}</span>
             </div>
           </div>
         )}
 
         {fetchedOrders && fetchedOrders.orders.length === 0 && (
-          <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-            <div className="flex items-center gap-2 text-gray-600">
+          <div className="mt-4 p-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg">
+            <div className="flex items-center gap-2 text-gray-600 dark:text-slate-300">
               <Package className="w-4 h-4" />
               <span>No unshipped orders found for {fetchedOrders.accountName}</span>
             </div>
@@ -510,18 +510,18 @@ export function Dashboard() {
       {/* Orders Modal */}
       {showOrdersModal && fetchedOrders && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-100 rounded-xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-gray-100 dark:bg-slate-900 rounded-xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-gray-800">eBay Orders</h2>
-                <p className="text-sm text-gray-500">{fetchedOrders.accountName}</p>
+                <h2 className="text-xl font-bold text-gray-800 dark:text-white">eBay Orders</h2>
+                <p className="text-sm text-gray-500 dark:text-slate-400">{fetchedOrders.accountName}</p>
               </div>
               <button
                 onClick={() => setShowOrdersModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
               </button>
             </div>
 
@@ -538,18 +538,18 @@ export function Dashboard() {
       )}
 
       {/* Logs Section */}
-      <section className="bg-white rounded-xl border border-gray-200 p-6">
+      <section className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6 transition-colors">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800">Activity Log</h3>
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Activity Log</h3>
           <button
             onClick={() => setLogs([])}
-            className="text-sm text-gray-500 hover:text-gray-700"
+            className="text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300"
           >
             Clear
           </button>
         </div>
 
-        <div className="bg-gray-900 rounded-lg p-4 h-64 overflow-y-auto font-mono text-sm">
+        <div className="bg-gray-900 dark:bg-slate-950 rounded-lg p-4 h-64 overflow-y-auto font-mono text-sm">
           {logs.length === 0 ? (
             <p className="text-gray-500">No activity yet...</p>
           ) : (
@@ -602,79 +602,79 @@ function AddAccountModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto">
-      <div className="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
-        <h3 className="text-lg font-semibold mb-4">Add New eBay Account</h3>
+      <div className="bg-white dark:bg-slate-800 rounded-xl p-6 max-w-2xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
+        <h3 className="text-lg font-semibold mb-4 dark:text-white">Add New eBay Account</h3>
 
         <div className="space-y-6">
           {/* Basic Info */}
           <div>
-            <h4 className="font-medium text-gray-700 mb-2">Account Name</h4>
+            <h4 className="font-medium text-gray-700 dark:text-slate-300 mb-2">Account Name</h4>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => updateField('name', e.target.value)}
               placeholder="e.g., My Store, Wife's Account"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           {/* eBay API Credentials - Required for Authorization */}
           <div>
-            <h4 className="font-medium text-gray-700 mb-2">eBay API Credentials <span className="text-red-500">*</span></h4>
-            <p className="text-xs text-gray-500 mb-3">
-              Get these from <a href="https://developer.ebay.com/my/keys" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">developer.ebay.com/my/keys</a>. These 3 fields are required for OAuth.
+            <h4 className="font-medium text-gray-700 dark:text-slate-300 mb-2">eBay API Credentials <span className="text-red-500">*</span></h4>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
+              Get these from <a href="https://developer.ebay.com/my/keys" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">developer.ebay.com/my/keys</a>. These 3 fields are required for OAuth.
             </p>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">App ID (Client ID) <span className="text-red-500">*</span></label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">App ID (Client ID) <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={formData.ebayAppId}
                   onChange={(e) => updateField('ebayAppId', e.target.value)}
                   placeholder="e.g., YourAppN-YourApp-PRD-abc123..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Cert ID (Client Secret) <span className="text-red-500">*</span></label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Cert ID (Client Secret) <span className="text-red-500">*</span></label>
                 <input
                   type="password"
                   value={formData.ebayCertId}
                   onChange={(e) => updateField('ebayCertId', e.target.value)}
                   placeholder="PRD-abc123-def456..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Redirect URI (RuName) <span className="text-red-500">*</span></label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Redirect URI (RuName) <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={formData.ebayRedirectUri}
                   onChange={(e) => updateField('ebayRedirectUri', e.target.value)}
                   placeholder="YourAppName-YourApp-YourAp-abc..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">Environment</label>
+                  <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Environment</label>
                   <select
                     value={formData.ebayEnvironment}
                     onChange={(e) => updateField('ebayEnvironment', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="PRODUCTION">Production</option>
                     <option value="SANDBOX">Sandbox</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">Dev ID <span className="text-gray-400">(optional)</span></label>
+                  <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Dev ID <span className="text-gray-400 dark:text-slate-500">(optional)</span></label>
                   <input
                     type="text"
                     value={formData.ebayDevId}
                     onChange={(e) => updateField('ebayDevId', e.target.value)}
                     placeholder="Optional - not needed for OAuth"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -683,46 +683,46 @@ function AddAccountModal({
 
           {/* Business Policies */}
           <div>
-            <h4 className="font-medium text-gray-700 mb-2">Business Policies (Optional)</h4>
-            <p className="text-xs text-gray-500 mb-3">
+            <h4 className="font-medium text-gray-700 dark:text-slate-300 mb-2">Business Policies (Optional)</h4>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
               You can add these later after authorization
             </p>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Payment Policy ID</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Payment Policy ID</label>
                 <input
                   type="text"
                   value={formData.paymentPolicyId}
                   onChange={(e) => updateField('paymentPolicyId', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Return Policy ID</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Return Policy ID</label>
                 <input
                   type="text"
                   value={formData.returnPolicyId}
                   onChange={(e) => updateField('returnPolicyId', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Fulfillment Policy ID</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Fulfillment Policy ID</label>
                 <input
                   type="text"
                   value={formData.fulfillmentPolicyId}
                   onChange={(e) => updateField('fulfillmentPolicyId', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+        <div className="flex justify-end gap-2 mt-6 pt-4 border-t dark:border-slate-700">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+            className="px-4 py-2 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg"
           >
             Cancel
           </button>
@@ -818,8 +818,8 @@ function AccountCard({
 
   return (
     <div
-      className={`border rounded-lg ${
-        isActive ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+      className={`border rounded-lg transition-colors ${
+        isActive ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-slate-700'
       }`}
     >
       {/* Header Row */}
@@ -832,44 +832,44 @@ function AccountCard({
             className={`p-1 rounded-full transition-colors ${
               isActive
                 ? 'bg-blue-600 cursor-default'
-                : 'bg-gray-200 hover:bg-blue-200'
+                : 'bg-gray-200 dark:bg-slate-600 hover:bg-blue-200 dark:hover:bg-blue-800'
             }`}
             title={isActive ? 'Selected account' : 'Select this account'}
           >
             <Radio
-              className={`w-4 h-4 ${isActive ? 'text-white' : 'text-gray-500'}`}
+              className={`w-4 h-4 ${isActive ? 'text-white' : 'text-gray-500 dark:text-slate-300'}`}
             />
           </button>
 
           {/* Authorization status icon */}
           <div
             className={`p-2 rounded-full ${
-              account.isAuthorized ? 'bg-green-100' : 'bg-gray-100'
+              account.isAuthorized ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-slate-700'
             }`}
           >
             {account.isAuthorized ? (
-              <CheckCircle className="w-5 h-5 text-green-600" />
+              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
             ) : (
-              <XCircle className="w-5 h-5 text-gray-400" />
+              <XCircle className="w-5 h-5 text-gray-400 dark:text-slate-500" />
             )}
           </div>
 
           {/* Account info */}
           <div>
-            <h4 className="font-medium text-gray-800 flex items-center gap-2">
+            <h4 className="font-medium text-gray-800 dark:text-white flex items-center gap-2">
               {account.name}
               {isActive && (
-                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                <span className="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded">
                   Selected
                 </span>
               )}
               {account.isAuthorized && (
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                <span className="text-xs bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 px-2 py-0.5 rounded">
                   Authorized
                 </span>
               )}
             </h4>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               {account.isAuthorized
                 ? `Token active${account.lastAuthorized ? ` - Last authorized ${new Date(account.lastAuthorized).toLocaleDateString()}` : ''}`
                 : hasCredentials ? 'Not authorized - Click Authorize' : 'Missing credentials - Configure settings'}
@@ -884,9 +884,9 @@ function AccountCard({
             disabled={!hasCredentials}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               !hasCredentials
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                ? 'bg-gray-100 dark:bg-slate-700 text-gray-400 dark:text-slate-500 cursor-not-allowed'
                 : account.isAuthorized
-                ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
             title={!hasCredentials ? 'Configure API credentials first' : ''}
@@ -901,7 +901,7 @@ function AccountCard({
 
           <button
             onClick={onToggleExpand}
-            className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1.5 text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
             title="Settings"
           >
             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
@@ -909,7 +909,7 @@ function AccountCard({
 
           <button
             onClick={onRemove}
-            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            className="p-1.5 text-gray-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
             title="Remove account"
           >
             <Trash2 className="w-4 h-4" />
@@ -919,66 +919,66 @@ function AccountCard({
 
       {/* Expanded Settings */}
       {isExpanded && (
-        <div className="px-4 pb-4 border-t border-gray-200 pt-4 space-y-4">
+        <div className="px-4 pb-4 border-t border-gray-200 dark:border-slate-700 pt-4 space-y-4">
           {/* eBay API Credentials - Required for Auth */}
           <div>
-            <h5 className="font-medium text-gray-700 mb-2 text-sm">
+            <h5 className="font-medium text-gray-700 dark:text-slate-300 mb-2 text-sm">
               eBay API Credentials <span className="text-red-500">*</span>
-              <span className="text-xs text-gray-400 font-normal ml-2">Required for authorization</span>
-              {hasChanges && <span className="text-xs text-blue-500 font-normal ml-2">(auto-saving...)</span>}
-              {isSaving && <span className="text-xs text-green-500 font-normal ml-2">(saved!)</span>}
+              <span className="text-xs text-gray-400 dark:text-slate-500 font-normal ml-2">Required for authorization</span>
+              {hasChanges && <span className="text-xs text-blue-500 dark:text-blue-400 font-normal ml-2">(auto-saving...)</span>}
+              {isSaving && <span className="text-xs text-green-500 dark:text-green-400 font-normal ml-2">(saved!)</span>}
             </h5>
             <div className="space-y-2">
               <div>
-                <label className="block text-xs text-gray-600 mb-1">App ID (Client ID) <span className="text-red-500">*</span></label>
+                <label className="block text-xs text-gray-600 dark:text-slate-400 mb-1">App ID (Client ID) <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={localData.ebayAppId || ''}
                   onChange={(e) => updateField('ebayAppId', e.target.value)}
                   placeholder="Required for OAuth"
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Cert ID (Client Secret) <span className="text-red-500">*</span></label>
+                <label className="block text-xs text-gray-600 dark:text-slate-400 mb-1">Cert ID (Client Secret) <span className="text-red-500">*</span></label>
                 <input
                   type="password"
                   value={localData.ebayCertId || ''}
                   onChange={(e) => updateField('ebayCertId', e.target.value)}
                   placeholder="Required for OAuth"
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Redirect URI (RuName) <span className="text-red-500">*</span></label>
+                <label className="block text-xs text-gray-600 dark:text-slate-400 mb-1">Redirect URI (RuName) <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={localData.ebayRedirectUri || ''}
                   onChange={(e) => updateField('ebayRedirectUri', e.target.value)}
                   placeholder="Required for OAuth"
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Environment</label>
+                  <label className="block text-xs text-gray-600 dark:text-slate-400 mb-1">Environment</label>
                   <select
                     value={localData.ebayEnvironment || 'PRODUCTION'}
                     onChange={(e) => updateField('ebayEnvironment', e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="PRODUCTION">Production</option>
                     <option value="SANDBOX">Sandbox</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Dev ID <span className="text-gray-400">(optional)</span></label>
+                  <label className="block text-xs text-gray-600 dark:text-slate-400 mb-1">Dev ID <span className="text-gray-400 dark:text-slate-500">(optional)</span></label>
                   <input
                     type="text"
                     value={localData.ebayDevId || ''}
                     onChange={(e) => updateField('ebayDevId', e.target.value)}
                     placeholder="Not needed for OAuth"
-                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -987,33 +987,33 @@ function AccountCard({
 
           {/* Business Policies */}
           <div>
-            <h5 className="font-medium text-gray-700 mb-2 text-sm">Business Policies <span className="text-xs text-gray-400 font-normal">(required for publishing)</span></h5>
+            <h5 className="font-medium text-gray-700 dark:text-slate-300 mb-2 text-sm">Business Policies <span className="text-xs text-gray-400 dark:text-slate-500 font-normal">(required for publishing)</span></h5>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Payment Policy ID</label>
+                <label className="block text-xs text-gray-600 dark:text-slate-400 mb-1">Payment Policy ID</label>
                 <input
                   type="text"
                   value={localData.paymentPolicyId || ''}
                   onChange={(e) => updateField('paymentPolicyId', e.target.value)}
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Return Policy ID</label>
+                <label className="block text-xs text-gray-600 dark:text-slate-400 mb-1">Return Policy ID</label>
                 <input
                   type="text"
                   value={localData.returnPolicyId || ''}
                   onChange={(e) => updateField('returnPolicyId', e.target.value)}
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Fulfillment Policy ID</label>
+                <label className="block text-xs text-gray-600 dark:text-slate-400 mb-1">Fulfillment Policy ID</label>
                 <input
                   type="text"
                   value={localData.fulfillmentPolicyId || ''}
                   onChange={(e) => updateField('fulfillmentPolicyId', e.target.value)}
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
