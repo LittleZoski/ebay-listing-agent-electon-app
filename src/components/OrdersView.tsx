@@ -234,15 +234,13 @@ function OrderCard({ order, isExpanded, onToggle }: { order: EbayOrder; isExpand
                     <div className="text-sm font-semibold text-gray-900">
                       {formatCurrency(item.price, item.currency)}
                     </div>
-                    <a
-                      href={`https://www.amazon.com/dp/${item.asin}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={() => window.electronAPI.openExternalUrl(`https://www.amazon.com/dp/${item.asin}`)}
                       className="p-1 hover:bg-gray-200 rounded transition-colors"
                       title="View on Amazon"
                     >
                       <ExternalLink className="w-4 h-4 text-blue-500" />
-                    </a>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -252,15 +250,13 @@ function OrderCard({ order, isExpanded, onToggle }: { order: EbayOrder; isExpand
           {/* Order Actions */}
           <div className="p-4 border-t border-gray-100 bg-gray-50">
             <div className="flex items-center justify-between">
-              <a
-                href={`https://www.ebay.com/sh/ord/details?orderid=${order.ebayOrderId}`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={() => window.electronAPI.openExternalUrl(`https://www.ebay.com/sh/ord/details?orderid=${order.ebayOrderId}`)}
                 className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
               >
                 View on eBay
                 <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+              </button>
               <span className="text-xs text-gray-400">
                 Fetched: {formatDate(order.processedAt)}
               </span>

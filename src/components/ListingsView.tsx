@@ -251,15 +251,13 @@ function ListingCard({
 
           {/* Actions */}
           <div className="flex-shrink-0 flex flex-col items-end gap-2">
-            <a
-              href={`https://www.ebay.com/itm/${listing.listingId}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => window.electronAPI.openExternalUrl(`https://www.ebay.com/itm/${listing.listingId}`)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               title="View on eBay"
             >
               <ExternalLink className="w-4 h-4 text-blue-500" />
-            </a>
+            </button>
           </div>
         </div>
       </div>

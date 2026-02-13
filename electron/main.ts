@@ -17,6 +17,19 @@ import {
   ListingSnapshot,
 } from './services/ebayListingManagementService'
 import type { GlobalSettings as ServiceGlobalSettings } from './services/productMapper'
+import {
+  getListingsDatabase,
+  PublishedListing,
+  ListingQueryOptions,
+  ListingStats,
+  AddListingInput,
+} from './services/listingsDatabase'
+import {
+  migrateProcessedFiles,
+  getMigrationPreview,
+  MigrationResult,
+  MigrationProgress,
+} from './services/listingsMigration'
 
 // ===== App Data Directory =====
 // Use Electron's userData path for all app data (tokens, accounts, etc.)
@@ -1252,6 +1265,55 @@ async function processJsonFile(
     const successful = results.filter(r => r.status === 'success')
     const failed = results.filter(r => r.status === 'failed')
 
+    // Save all results to the listings database
+    try {
+      const listingsDb = getListingsDatabase()
+      await listingsDb.initialize()
+
+      // Create a map of products by ASIN for quick lookup
+      const productMap = new Map(products.map(p => [p.asin, p]))
+
+      for (const result of results) {
+        const product = productMap.get(result.sku)
+        if (product) {
+          const input: AddListingInput = {
+            product: {
+              asin: product.asin,
+              title: product.title,
+              description: product.description,
+              bulletPoints: product.bulletPoints,
+              specifications: product.specifications,
+              images: product.images,
+              price: product.price,
+              deliveryFee: product.deliveryFee,
+              source: product.source,
+              originalAmazonUrl: product.originalAmazonUrl,
+            },
+            result: {
+              sku: result.sku,
+              status: result.status,
+              categoryId: result.categoryId,
+              categoryName: result.categoryName,
+              offerId: result.offerId,
+              listingId: result.listingId,
+              ebayPrice: result.ebayPrice,
+              stage: result.stage,
+              error: result.error,
+            },
+            sourceFile: fileName,
+            accountId: account.id,
+          }
+
+          await listingsDb.upsertListing(input)
+        }
+      }
+
+      console.log(`[ListingsDB] Saved ${results.length} listings to database`)
+    } catch (dbError) {
+      console.error('[ListingsDB] Error saving to database:', dbError)
+      // Don't fail the whole operation if DB save fails
+    }
+
     if (mainWindow) {
       mainWindow.webContents.send('watcher-output', {
         type: 'info',
@@ -1292,3 +1354,157 @@ async function processJsonFile(
     return false
   }
 }
+
+// ===== Utility IPC Handlers =====
+
+// Open URL in system default browser (e.g., Chrome)
+ipcMain.handle('open-external-url', async (
+  _event: Electron.IpcMainInvokeEvent,
+  url: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    await shell.openExternal(url)
+    return { success: true }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    console.error('Error opening external URL:', errorMessage)
+    return { success: false, error: errorMessage }
+  }
+})
+
+// ===== Published Listings Database IPC Handlers =====
+
+// Get listing by SKU
+ipcMain.handle('db-get-listing-by-sku', async (
+  _event: Electron.IpcMainInvokeEvent,
+  sku: string
+): Promise<PublishedListing | null> => {
+  const db = getListingsDatabase()
+  await db.initialize()
+  return db.getListingBySku(sku)
+})
+
+// Get listing by eBay listing ID
+ipcMain.handle('db-get-listing-by-listing-id', async (
+  _event: Electron.IpcMainInvokeEvent,
+  listingId: string
+): Promise<PublishedListing | null> => {
+  const db = getListingsDatabase()
+  await db.initialize()
+  return db.getListingByListingId(listingId)
+})
+
+// Query listings with filters
+ipcMain.handle('db-query-listings', async (
+  _event: Electron.IpcMainInvokeEvent,
+  options?: ListingQueryOptions
+): Promise<PublishedListing[]> => {
+  const db = getListingsDatabase()
+  await db.initialize()
+  return db.queryListings(options || {})
+})
+
+// Get all successful listings
+ipcMain.handle('db-get-successful-listings', async (
+  _event: Electron.IpcMainInvokeEvent,
+  accountId?: string
+): Promise<PublishedListing[]> => {
+  const db = getListingsDatabase()
+  await db.initialize()
+  return db.getSuccessfulListings(accountId)
+})
+
+// Get listing statistics
+ipcMain.handle('db-get-listing-stats', async (
+  _event: Electron.IpcMainInvokeEvent,
+  accountId?: string
+): Promise<ListingStats> => {
+  const db = getListingsDatabase()
+  await db.initialize()
+  return db.getStats(accountId)
+})
+
+// Search listings by title
+ipcMain.handle('db-search-listings', async (
+  _event: Electron.IpcMainInvokeEvent,
+  query: string,
+  limit?: number
+): Promise<PublishedListing[]> => {
+  const db = getListingsDatabase()
+  await db.initialize()
+  return db.searchByTitle(query, limit)
+})
+
+// Get total listing count
+ipcMain.handle('db-get-listing-count', async (
+  _event: Electron.IpcMainInvokeEvent,
+  filter?: Partial<PublishedListing>
+): Promise<number> => {
+  const db = getListingsDatabase()
+  await db.initialize()
+  return db.getCount(filter)
+})
+
+// Export all listings to JSON
+ipcMain.handle('db-export-listings', async (): Promise<PublishedListing[]> => {
+  const db = getListingsDatabase()
+  await db.initialize()
+  return db.exportToJson()
+})
+
+// Get database info
+ipcMain.handle('db-get-info', async (): Promise<{
+  path: string
+  count: number
+  initialized: boolean
+}> => {
+  const db = getListingsDatabase()
+  try {
+    await db.initialize()
+    return {
+      path: db.getDbPath(),
+      count: await db.getCount(),
+      initialized: true,
+    }
+  } catch {
+    return {
+      path: '',
+      count: 0,
+      initialized: false,
+    }
+  }
+})
+
+// ===== Migration IPC Handlers =====
+
+// Get migration preview (what would be migrated)
+ipcMain.handle('db-get-migration-preview', async (
+  _event: Electron.IpcMainInvokeEvent,
+  processedFolder: string
+): Promise<{
+  totalFiles: number
+  filesWithResults: number
+  filesWithoutResults: number
+  estimatedProducts: number
+}> => {
+  return getMigrationPreview(processedFolder)
+})
+
+// Run migration from processed folder
+ipcMain.handle('db-run-migration', async (
+  _event: Electron.IpcMainInvokeEvent,
+  processedFolder: string,
+  accountId?: string
+): Promise<MigrationResult> => {
+  const data = loadAccounts()
+  const targetAccountId = accountId || data.activeAccountId || 'unknown'
+
+  // Send progress updates to renderer
+  const onProgress = (progress: MigrationProgress) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('migration-progress', progress)
+    }
+  }
+
+  return migrateProcessedFiles(processedFolder, targetAccountId, onProgress)
+})

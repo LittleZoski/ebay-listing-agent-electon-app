@@ -176,6 +176,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ) => ipcRenderer.invoke('get-listing-history', accountId, listingId, dateRange),
   listListingExports: (accountId?: string) => ipcRenderer.invoke('list-listing-exports', accountId),
 
+  // Utilities
+  openExternalUrl: (url: string) => ipcRenderer.invoke('open-external-url', url),
+
+  // Published Listings Database
+  dbGetListingBySku: (sku: string) => ipcRenderer.invoke('db-get-listing-by-sku', sku),
+  dbGetListingByListingId: (listingId: string) => ipcRenderer.invoke('db-get-listing-by-listing-id', listingId),
+  dbQueryListings: (options?: ListingQueryOptions) => ipcRenderer.invoke('db-query-listings', options),
+  dbGetSuccessfulListings: (accountId?: string) => ipcRenderer.invoke('db-get-successful-listings', accountId),
+  dbGetListingStats: (accountId?: string) => ipcRenderer.invoke('db-get-listing-stats', accountId),
+  dbSearchListings: (query: string, limit?: number) => ipcRenderer.invoke('db-search-listings', query, limit),
+  dbGetListingCount: (filter?: Partial<PublishedListing>) => ipcRenderer.invoke('db-get-listing-count', filter),
+  dbExportListings: () => ipcRenderer.invoke('db-export-listings'),
+  dbGetInfo: () => ipcRenderer.invoke('db-get-info'),
+
+  // Migration
+  dbGetMigrationPreview: (processedFolder: string) => ipcRenderer.invoke('db-get-migration-preview', processedFolder),
+  dbRunMigration: (processedFolder: string, accountId?: string) => ipcRenderer.invoke('db-run-migration', processedFolder, accountId),
+
   // Event listeners
   onWatcherOutput: (callback: (data: { type: string; data: string }) => void) => {
     ipcRenderer.on('watcher-output', (_event, data) => callback(data))
@@ -196,6 +214,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onListingsFetched: (callback: (data: { accountName: string; totalListings: number; newListings: number; updatedListings: number }) => void) => {
     ipcRenderer.on('listings-fetched', (_event, data) => callback(data))
     return () => ipcRenderer.removeAllListeners('listings-fetched')
+  },
+  onMigrationProgress: (callback: (data: MigrationProgress) => void) => {
+    ipcRenderer.on('migration-progress', (_event, data) => callback(data))
+    return () => ipcRenderer.removeAllListeners('migration-progress')
   },
 })
 
@@ -237,12 +259,36 @@ export interface ElectronAPI {
   ) => Promise<ListingSnapshot[]>
   listListingExports: (accountId?: string) => Promise<{ files: string[]; folder: string }>
 
+  // Utilities
+  openExternalUrl: (url: string) => Promise<{ success: boolean; error?: string }>
+
+  // Published Listings Database
+  dbGetListingBySku: (sku: string) => Promise<PublishedListing | null>
+  dbGetListingByListingId: (listingId: string) => Promise<PublishedListing | null>
+  dbQueryListings: (options?: ListingQueryOptions) => Promise<PublishedListing[]>
+  dbGetSuccessfulListings: (accountId?: string) => Promise<PublishedListing[]>
+  dbGetListingStats: (accountId?: string) => Promise<ListingStats>
+  dbSearchListings: (query: string, limit?: number) => Promise<PublishedListing[]>
+  dbGetListingCount: (filter?: Partial<PublishedListing>) => Promise<number>
+  dbExportListings: () => Promise<PublishedListing[]>
+  dbGetInfo: () => Promise<{ path: string; count: number; initialized: boolean }>
+
+  // Migration
+  dbGetMigrationPreview: (processedFolder: string) => Promise<{
+    totalFiles: number
+    filesWithResults: number
+    filesWithoutResults: number
+    estimatedProducts: number
+  }>
+  dbRunMigration: (processedFolder: string, accountId?: string) => Promise<MigrationResult>
+
   // Event listeners
   onWatcherOutput: (callback: (data: { type: string; data: string }) => void) => () => void
   onWatcherStopped: (callback: (data: { code: number }) => void) => () => void
   onOrdersFetched: (callback: (data: { accountName: string; totalOrders: number; orders: EbayOrder[] }) => void) => () => void
   onListingsProgress: (callback: (data: ListingProgress) => void) => () => void
   onListingsFetched: (callback: (data: { accountName: string; totalListings: number; newListings: number; updatedListings: number }) => void) => () => void
+  onMigrationProgress: (callback: (data: MigrationProgress) => void) => () => void
 }
 
 // Order types for renderer
@@ -359,6 +405,77 @@ export interface ListingProgress {
   current: number
   total: number
   message: string
+}
+
+// ===== Published Listings Database Types =====
+
+export interface PublishedListing {
+  sku: string
+  title: string
+  description?: string
+  bulletPoints?: string[]
+  specifications?: Record<string, string>
+  images?: string[]
+  originalPrice?: string
+  deliveryFee?: string
+  source?: string
+  originalUrl?: string
+  offerId?: string
+  listingId?: string
+  categoryId?: string
+  categoryName?: string
+  ebayPrice?: number
+  optimizedTitle?: string
+  sourceFile?: string
+  publishedAt: string
+  accountId: string
+  processingTime?: number
+  status: 'success' | 'failed'
+  failureStage?: string
+  failureError?: string
+}
+
+export interface ListingQueryOptions {
+  sku?: string
+  accountId?: string
+  source?: string
+  status?: 'success' | 'failed'
+  categoryId?: string
+  fromDate?: string
+  toDate?: string
+  limit?: number
+  offset?: number
+}
+
+export interface ListingStats {
+  totalListings: number
+  successfulListings: number
+  failedListings: number
+  bySource: Record<string, number>
+  byCategory: Record<string, number>
+  byAccount: Record<string, number>
+}
+
+export interface MigrationProgress {
+  phase: 'scanning' | 'processing' | 'complete'
+  currentFile?: string
+  totalFiles: number
+  processedFiles: number
+  totalProducts: number
+  importedProducts: number
+  skippedProducts: number
+  errors: string[]
+}
+
+export interface MigrationResult {
+  success: boolean
+  totalFiles: number
+  processedFiles: number
+  totalProducts: number
+  importedProducts: number
+  skippedProducts: number
+  updatedProducts: number
+  errors: string[]
 }
 
 declare global {

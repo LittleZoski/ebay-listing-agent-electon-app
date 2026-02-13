@@ -343,6 +343,7 @@ export function loadProductsFromFile(filePath: string): {
     deliveryFee?: string
     source?: string
     price_multiplier?: number
+    originalAmazonUrl?: string
   }>
   fileName: string
 } {

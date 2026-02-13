@@ -212,7 +212,7 @@ export function Settings() {
             />
             <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
               Required for AI-powered category selection and title optimization.
-              Get your key from <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">console.anthropic.com</a>
+              Get your key from <button onClick={() => window.electronAPI.openExternalUrl('https://console.anthropic.com/')} className="text-blue-600 dark:text-blue-400 hover:underline">console.anthropic.com</button>
             </p>
           </div>
         </div>

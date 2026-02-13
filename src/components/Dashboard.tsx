@@ -622,7 +622,7 @@ function AddAccountModal({
           <div>
             <h4 className="font-medium text-gray-700 dark:text-slate-300 mb-2">eBay API Credentials <span className="text-red-500">*</span></h4>
             <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
-              Get these from <a href="https://developer.ebay.com/my/keys" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">developer.ebay.com/my/keys</a>. These 3 fields are required for OAuth.
+              Get these from <button onClick={() => window.electronAPI.openExternalUrl('https://developer.ebay.com/my/keys')} className="text-blue-600 dark:text-blue-400 hover:underline">developer.ebay.com/my/keys</button>. These 3 fields are required for OAuth.
             </p>
             <div className="space-y-3">
               <div>

@@ -70,6 +70,7 @@ export interface AmazonProduct {
   deliveryFee?: string
   source?: string
   price_multiplier?: number
+  originalAmazonUrl?: string
 }
 
 export interface PricingTier {
