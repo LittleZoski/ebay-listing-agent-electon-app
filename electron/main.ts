@@ -391,6 +391,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    show: false, // Stay hidden until ready-to-show fires (prevents white flash)
+    backgroundColor: '#0f172a', // Match loading screen background
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -398,6 +400,11 @@ function createWindow() {
     },
     titleBarStyle: 'hiddenInset',
     frame: true,
+  })
+
+  // Show the window only when content is fully painted — no blank white flash
+  mainWindow.once('ready-to-show', () => {
+    mainWindow!.show()
   })
 
   if (process.env.NODE_ENV === 'development' || !app.isPackaged) {

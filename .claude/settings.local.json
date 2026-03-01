@@ -17,7 +17,13 @@
       "WebFetch(domain:js.langchain.com)",
       "WebFetch(domain:docs.langchain.com)",
       "WebFetch(domain:latenode.com)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(npx electron-icon-builder:*)",
+      "Bash(npm run package:*)",
+      "Bash(set CSC_IDENTITY_AUTO_DISCOVERY=false)",
+      "Bash(set:*)",
+      "Bash(npx electron-builder:*)",
+      "Bash(npm run typecheck)"
     ]
   }
 }

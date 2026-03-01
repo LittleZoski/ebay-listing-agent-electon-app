@@ -7,6 +7,97 @@
     <title>eBay Seller App</title>
   </head>
   <body>
+    <!-- Loading screen: renders immediately from HTML before any JS loads -->
+    <div id="app-loading">
+      <style>
+        #app-loading {
+          position: fixed;
+          inset: 0;
+          background: #0f172a;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+          opacity: 1;
+          transition: opacity 0.35s ease;
+          font-family: Inter, system-ui, -apple-system, sans-serif;
+          user-select: none;
+        }
+        #app-loading.fade-out {
+          opacity: 0;
+          pointer-events: none;
+        }
+        .al-logo {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          margin-bottom: 16px;
+        }
+        .al-icon {
+          width: 52px;
+          height: 52px;
+          background: linear-gradient(135deg, #2563eb, #1d4ed8);
+          border-radius: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 0 32px rgba(37, 99, 235, 0.35);
+        }
+        .al-wordmark {
+          font-size: 30px;
+          font-weight: 800;
+          letter-spacing: -0.5px;
+          line-height: 1;
+        }
+        .al-wordmark .c-e { color: #ef4444; }
+        .al-wordmark .c-b { color: #3b82f6; }
+        .al-wordmark .c-a { color: #f59e0b; }
+        .al-wordmark .c-y { color: #22c55e; }
+        .al-wordmark .c-rest { color: #f1f5f9; }
+        .al-tagline {
+          color: #475569;
+          font-size: 13px;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          margin-bottom: 52px;
+        }
+        .al-spinner {
+          width: 36px;
+          height: 36px;
+          border: 3px solid #1e293b;
+          border-top-color: #3b82f6;
+          border-radius: 50%;
+          animation: al-spin 0.75s linear infinite;
+        }
+        @keyframes al-spin {
+          to { transform: rotate(360deg); }
+        }
+        .al-status {
+          margin-top: 18px;
+          color: #334155;
+          font-size: 12px;
+          letter-spacing: 0.04em;
+        }
+      </style>
+
+      <div class="al-logo">
+        <div class="al-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+            <line x1="7" y1="7" x2="7.01" y2="7"/>
+          </svg>
+        </div>
+        <div class="al-wordmark">
+          <span class="c-e">e</span><span class="c-b">B</span><span class="c-a">a</span><span class="c-y">y</span><span class="c-rest"> Seller</span>
+        </div>
+      </div>
+
+      <div class="al-tagline">AI-powered listing automation</div>
+      <div class="al-spinner"></div>
+      <div class="al-status">Starting up...</div>
+    </div>
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

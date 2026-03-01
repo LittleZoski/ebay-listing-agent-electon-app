@@ -37,6 +37,7 @@
     "concurrently": "^9.1.0",
     "electron": "^32.2.0",
     "electron-builder": "^25.1.8",
+    "electron-icon-builder": "^2.0.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.16",
     "typescript": "^5.7.2",
@@ -54,10 +55,25 @@
       "dist-electron/**/*"
     ],
     "win": {
-      "target": [
-        "nsis"
-      ],
-      "icon": "public/icon.ico"
+      "target": ["nsis"],
+      "icon": "public/icons/win/icon.ico",
+      "sign": null,
+      "signingHashAlgorithms": null
+    },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "public/icons/mac/icon.icns",
+      "category": "public.app-category.business"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "icon": "public/icons/png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     }
   }
 }

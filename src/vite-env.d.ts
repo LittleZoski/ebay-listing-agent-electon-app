@@ -252,6 +252,9 @@ interface ElectronAPI {
   getGlobalSettings: () => Promise<GlobalSettings>
   updateGlobalSettings: (updates: Partial<GlobalSettings>) => Promise<{ success: boolean; globalSettings: GlobalSettings }>
 
+  // Utilities
+  openExternalUrl: (url: string) => Promise<{ success: boolean; error?: string }>
+
   // Authorization
   startAuthorization: (accountId: string) => Promise<{ consentUrl: string; accountId: string }>
   completeAuthorization: (accountId: string, callbackUrl: string) => Promise<{ success: boolean; account: EbayAccount }>

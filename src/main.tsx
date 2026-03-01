@@ -43,3 +43,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </ThemeProvider>
   </React.StrictMode>,
 )
+
+// Fade out and remove the loading screen once React has mounted
+const loader = document.getElementById('app-loading')
+if (loader) {
+  loader.classList.add('fade-out')
+  setTimeout(() => loader.remove(), 380)
+}

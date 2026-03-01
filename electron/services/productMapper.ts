@@ -71,6 +71,7 @@ export interface AmazonProduct {
   source?: string
   price_multiplier?: number
   originalAmazonUrl?: string
+  customizedFinalPrice?: number
 }
 
 export interface PricingTier {
@@ -534,14 +535,22 @@ export function processProduct(
   const deliveryFee = parsePrice(product.deliveryFee)
 
   // Calculate eBay price
-  const totalCost = amazonPrice + deliveryFee
-  const multiplierUsed =
-    product.price_multiplier ?? getTieredMultiplier(totalCost, settings, product.source)
-  const ebayPrice = calculateEbayPrice(amazonPrice, settings, {
-    deliveryFee,
-    multiplier: product.price_multiplier,
-    source: product.source,
-  })
+  // If customizedFinalPrice is set, use it directly without any multiplier or charm pricing
+  let ebayPrice: number
+  let multiplierUsed: number
+  if (product.customizedFinalPrice != null) {
+    ebayPrice = product.customizedFinalPrice
+    multiplierUsed = 1
+  } else {
+    const totalCost = amazonPrice + deliveryFee
+    multiplierUsed =
+      product.price_multiplier ?? getTieredMultiplier(totalCost, settings, product.source)
+    ebayPrice = calculateEbayPrice(amazonPrice, settings, {
+      deliveryFee,
+      multiplier: product.price_multiplier,
+      source: product.source,
+    })
+  }
 
   // Extract brand
   const brand = extractBrand(sanitized.title, sanitized.specifications)
