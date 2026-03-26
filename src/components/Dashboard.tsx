@@ -17,6 +17,7 @@ import {
   Package,
   RefreshCw,
   X,
+  DollarSign,
 } from 'lucide-react'
 import { OrdersView } from './OrdersView'
 
@@ -40,8 +41,91 @@ interface EbayAccount {
   watchFolder: string
   processedFolder: string
   failedFolder: string
+  // Per-account pricing overrides (optional - overrides global if set, null = cleared)
+  amazonTier1MaxPrice?: number | null
+  amazonTier1Multiplier?: number | null
+  amazonTier2MaxPrice?: number | null
+  amazonTier2Multiplier?: number | null
+  amazonTier3MaxPrice?: number | null
+  amazonTier3Multiplier?: number | null
+  amazonTier4MaxPrice?: number | null
+  amazonTier4Multiplier?: number | null
+  amazonTier5MaxPrice?: number | null
+  amazonTier5Multiplier?: number | null
+  amazonTier6MaxPrice?: number | null
+  amazonTier6Multiplier?: number | null
+  amazonTier7Multiplier?: number | null
+  yamiTier1MaxPrice?: number | null
+  yamiTier1Multiplier?: number | null
+  yamiTier2MaxPrice?: number | null
+  yamiTier2Multiplier?: number | null
+  yamiTier3MaxPrice?: number | null
+  yamiTier3Multiplier?: number | null
+  yamiTier4MaxPrice?: number | null
+  yamiTier4Multiplier?: number | null
+  yamiTier5MaxPrice?: number | null
+  yamiTier5Multiplier?: number | null
+  yamiTier6MaxPrice?: number | null
+  yamiTier6Multiplier?: number | null
+  yamiTier7Multiplier?: number | null
+  costcoTier1MaxPrice?: number | null
+  costcoTier1Multiplier?: number | null
+  costcoTier2MaxPrice?: number | null
+  costcoTier2Multiplier?: number | null
+  costcoTier3MaxPrice?: number | null
+  costcoTier3Multiplier?: number | null
+  costcoTier4MaxPrice?: number | null
+  costcoTier4Multiplier?: number | null
+  costcoTier5MaxPrice?: number | null
+  costcoTier5Multiplier?: number | null
+  costcoTier6MaxPrice?: number | null
+  costcoTier6Multiplier?: number | null
+  costcoTier7Multiplier?: number | null
   createdAt: string
   lastAuthorized?: string
+}
+
+interface GlobalSettings {
+  amazonTier1MaxPrice: number
+  amazonTier1Multiplier: number
+  amazonTier2MaxPrice: number
+  amazonTier2Multiplier: number
+  amazonTier3MaxPrice: number
+  amazonTier3Multiplier: number
+  amazonTier4MaxPrice: number
+  amazonTier4Multiplier: number
+  amazonTier5MaxPrice: number
+  amazonTier5Multiplier: number
+  amazonTier6MaxPrice: number
+  amazonTier6Multiplier: number
+  amazonTier7Multiplier: number
+  yamiTier1MaxPrice: number
+  yamiTier1Multiplier: number
+  yamiTier2MaxPrice: number
+  yamiTier2Multiplier: number
+  yamiTier3MaxPrice: number
+  yamiTier3Multiplier: number
+  yamiTier4MaxPrice: number
+  yamiTier4Multiplier: number
+  yamiTier5MaxPrice: number
+  yamiTier5Multiplier: number
+  yamiTier6MaxPrice: number
+  yamiTier6Multiplier: number
+  yamiTier7Multiplier: number
+  costcoTier1MaxPrice: number
+  costcoTier1Multiplier: number
+  costcoTier2MaxPrice: number
+  costcoTier2Multiplier: number
+  costcoTier3MaxPrice: number
+  costcoTier3Multiplier: number
+  costcoTier4MaxPrice: number
+  costcoTier4Multiplier: number
+  costcoTier5MaxPrice: number
+  costcoTier5Multiplier: number
+  costcoTier6MaxPrice: number
+  costcoTier6Multiplier: number
+  costcoTier7Multiplier: number
+  [key: string]: unknown
 }
 
 // Order types for local state
@@ -291,6 +375,7 @@ export function Dashboard() {
               <AccountCard
                 key={account.id}
                 account={account}
+                globalSettings={accountsData?.globalSettings as GlobalSettings | undefined}
                 isActive={account.id === activeAccountId}
                 isExpanded={editingAccountId === account.id}
                 onToggleExpand={() =>
@@ -743,6 +828,7 @@ function AddAccountModal({
 // Account Card Component with expandable settings
 function AccountCard({
   account,
+  globalSettings,
   isActive,
   isExpanded,
   onToggleExpand,
@@ -754,6 +840,7 @@ function AccountCard({
   isSaving,
 }: {
   account: EbayAccount
+  globalSettings?: GlobalSettings
   isActive: boolean
   isExpanded: boolean
   onToggleExpand: () => void
@@ -783,7 +870,7 @@ function AccountCard({
     })
   }, [account])
 
-  const updateField = (field: keyof EbayAccount, value: string | number) => {
+  const updateField = (field: keyof EbayAccount, value: string | number | null) => {
     // Update local state immediately for responsive UI
     setLocalData((prev) => ({ ...prev, [field]: value }))
     setPendingChanges((prev) => ({ ...prev, [field]: value }))
@@ -1017,6 +1104,188 @@ function AccountCard({
                 />
               </div>
             </div>
+          </div>
+
+          {/* Pricing Tier Overrides */}
+          <AccountPricingOverrides
+            account={account}
+            localData={localData}
+            globalSettings={globalSettings}
+            onUpdate={updateField}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Pricing tier overrides section for an account
+function AccountPricingOverrides({
+  account,
+  localData,
+  globalSettings,
+  onUpdate,
+}: {
+  account: EbayAccount
+  localData: Partial<EbayAccount>
+  globalSettings?: GlobalSettings
+  onUpdate: (field: keyof EbayAccount, value: number | null) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  // Check if any pricing override is set on this account
+  const pricingFields: (keyof EbayAccount)[] = [
+    'amazonTier1MaxPrice', 'amazonTier1Multiplier',
+    'amazonTier2MaxPrice', 'amazonTier2Multiplier',
+    'amazonTier3MaxPrice', 'amazonTier3Multiplier',
+    'amazonTier4MaxPrice', 'amazonTier4Multiplier',
+    'amazonTier5MaxPrice', 'amazonTier5Multiplier',
+    'amazonTier6MaxPrice', 'amazonTier6Multiplier',
+    'amazonTier7Multiplier',
+    'yamiTier1MaxPrice', 'yamiTier1Multiplier',
+    'yamiTier2MaxPrice', 'yamiTier2Multiplier',
+    'yamiTier3MaxPrice', 'yamiTier3Multiplier',
+    'yamiTier4MaxPrice', 'yamiTier4Multiplier',
+    'yamiTier5MaxPrice', 'yamiTier5Multiplier',
+    'yamiTier6MaxPrice', 'yamiTier6Multiplier',
+    'yamiTier7Multiplier',
+    'costcoTier1MaxPrice', 'costcoTier1Multiplier',
+    'costcoTier2MaxPrice', 'costcoTier2Multiplier',
+    'costcoTier3MaxPrice', 'costcoTier3Multiplier',
+    'costcoTier4MaxPrice', 'costcoTier4Multiplier',
+    'costcoTier5MaxPrice', 'costcoTier5Multiplier',
+    'costcoTier6MaxPrice', 'costcoTier6Multiplier',
+    'costcoTier7Multiplier',
+  ]
+  // Helper: get the effective value for a field (local state takes priority, null = cleared)
+  const getValue = (field: keyof EbayAccount): number | undefined => {
+    // localData[field] === undefined means "not modified yet" → fall back to account value
+    // localData[field] === null means "user cleared it" → treat as unset
+    const v = localData[field] !== undefined ? localData[field] : account[field]
+    return typeof v === 'number' ? v : undefined
+  }
+
+  // Whether any override is currently active (based on saved account data)
+  const hasOverrides = pricingFields.some((f) => typeof account[f] === 'number')
+
+  // Render a single tier row inline
+  const TierRow = ({
+    label,
+    maxPriceField,
+    multiplierField,
+    isLast = false,
+  }: {
+    label: string
+    maxPriceField?: keyof EbayAccount
+    multiplierField: keyof EbayAccount
+    isLast?: boolean
+  }) => {
+    const maxVal = maxPriceField ? getValue(maxPriceField) : undefined
+    const multVal = getValue(multiplierField)
+    const gs = globalSettings as Record<string, unknown> | undefined
+    const globalMax = maxPriceField && gs ? (gs[maxPriceField as string] as number) : undefined
+    const globalMult = gs ? (gs[multiplierField as string] as number) : undefined
+
+    return (
+      <div className="flex items-center gap-3 text-xs">
+        <span className="w-28 text-gray-600 dark:text-slate-400 shrink-0">{label}</span>
+        {!isLast && maxPriceField ? (
+          <div className="flex items-center gap-1">
+            <span className="text-gray-400 dark:text-slate-500">≤$</span>
+            <input
+              type="number"
+              value={maxVal ?? ''}
+              onChange={(e) => {
+                const v = e.target.value === '' ? null : parseFloat(e.target.value)
+                onUpdate(maxPriceField, v)
+              }}
+              placeholder={globalMax !== undefined ? String(globalMax) : 'global'}
+              className="w-16 px-1.5 py-1 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs"
+            />
+          </div>
+        ) : (
+          <span className="w-20 text-gray-400 dark:text-slate-500 text-xs">Above all</span>
+        )}
+        <div className="flex items-center gap-1">
+          <span className="text-gray-400 dark:text-slate-500">×</span>
+          <input
+            type="number"
+            value={multVal ?? ''}
+            onChange={(e) => {
+              const v = e.target.value === '' ? null : parseFloat(e.target.value)
+              onUpdate(multiplierField, v)
+            }}
+            placeholder={globalMult !== undefined ? String(globalMult) : 'global'}
+            step={0.05}
+            className="w-16 px-1.5 py-1 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs"
+          />
+        </div>
+        {(maxVal !== undefined || multVal !== undefined) && (
+          <button
+            onClick={() => {
+              if (maxPriceField) onUpdate(maxPriceField, null)
+              onUpdate(multiplierField, null)
+            }}
+            className="text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-400 text-xs"
+            title="Clear override"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  const SourceSection = ({
+    title,
+    prefix,
+  }: {
+    title: string
+    prefix: 'amazon' | 'yami' | 'costco'
+  }) => (
+    <div>
+      <p className="text-xs font-medium text-gray-600 dark:text-slate-400 mb-1.5">{title}</p>
+      <div className="space-y-1.5 pl-2">
+        <TierRow label="Tier 1" maxPriceField={`${prefix}Tier1MaxPrice` as keyof EbayAccount} multiplierField={`${prefix}Tier1Multiplier` as keyof EbayAccount} />
+        <TierRow label="Tier 2" maxPriceField={`${prefix}Tier2MaxPrice` as keyof EbayAccount} multiplierField={`${prefix}Tier2Multiplier` as keyof EbayAccount} />
+        <TierRow label="Tier 3" maxPriceField={`${prefix}Tier3MaxPrice` as keyof EbayAccount} multiplierField={`${prefix}Tier3Multiplier` as keyof EbayAccount} />
+        <TierRow label="Tier 4" maxPriceField={`${prefix}Tier4MaxPrice` as keyof EbayAccount} multiplierField={`${prefix}Tier4Multiplier` as keyof EbayAccount} />
+        <TierRow label="Tier 5" maxPriceField={`${prefix}Tier5MaxPrice` as keyof EbayAccount} multiplierField={`${prefix}Tier5Multiplier` as keyof EbayAccount} />
+        <TierRow label="Tier 6" maxPriceField={`${prefix}Tier6MaxPrice` as keyof EbayAccount} multiplierField={`${prefix}Tier6Multiplier` as keyof EbayAccount} />
+        <TierRow label="Tier 7" multiplierField={`${prefix}Tier7Multiplier` as keyof EbayAccount} isLast />
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="border-t border-gray-200 dark:border-slate-700 pt-3">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:text-gray-900 dark:hover:text-white w-full text-left"
+      >
+        <DollarSign className="w-4 h-4 text-gray-500 dark:text-slate-400" />
+        Pricing Tier Overrides
+        {hasOverrides && (
+          <span className="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded ml-1">
+            Custom
+          </span>
+        )}
+        <span className="ml-auto text-gray-400 dark:text-slate-500">{expanded ? '▲' : '▼'}</span>
+      </button>
+      {!expanded && (
+        <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5 ml-6">
+          {hasOverrides ? 'Account-specific multipliers set (override global)' : 'Using global settings'}
+        </p>
+      )}
+      {expanded && (
+        <div className="mt-3 space-y-4">
+          <p className="text-xs text-gray-500 dark:text-slate-400">
+            Leave fields empty to use global settings. Set values to override for this account only.
+          </p>
+          <div className="grid grid-cols-3 gap-4">
+            <SourceSection title="Amazon" prefix="amazon" />
+            <SourceSection title="Yami" prefix="yami" />
+            <SourceSection title="Costco" prefix="costco" />
           </div>
         </div>
       )}

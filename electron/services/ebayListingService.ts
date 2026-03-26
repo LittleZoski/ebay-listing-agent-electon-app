@@ -15,6 +15,16 @@ import {
   AmazonProduct,
 } from './productMapper'
 
+// eBay categories that carry a mandatory $20 insertion fee per listing.
+// These are exempt from zero-insertion-fee programs regardless of store subscription.
+// Source: ebay.com/help/selling/fees-credits-invoices/selling-fees?id=4822
+const HIGH_FEE_CATEGORIES: Record<string, string> = {
+  '177641': 'Heavy Equipment (Business & Industrial > Heavy Equipment, Parts & Attachments)',
+  '67145':  'Food Trucks, Trailers & Carts (Business & Industrial > Restaurant & Food Service)',
+  '26247':  'Commercial Printing Presses (Business & Industrial > Printing & Graphic Arts)',
+}
+const HIGH_FEE_CATEGORY_IDS = new Set(Object.keys(HIGH_FEE_CATEGORIES))
+
 export interface EbayAccount {
   id: string
   ebayAppId: string
@@ -52,6 +62,22 @@ export interface ListingProgress {
   currentSku: string
   stage: string
   message: string
+}
+
+/**
+ * Extract country of origin from product specifications.
+ * Defaults to "United States" when not explicitly stated, rather than letting
+ * the LLM guess (which tends to fill it as "China" for Amazon products).
+ */
+function getCountryOfOrigin(specifications?: Record<string, string>): string {
+  if (specifications) {
+    const keys = ['Country of Origin', 'Country/Region of Origin', 'Country', 'Made in']
+    for (const key of keys) {
+      const value = specifications[key]
+      if (value && value.trim()) return value.trim()
+    }
+  }
+  return 'United States'
 }
 
 /**
@@ -463,6 +489,16 @@ export class EbayListingService {
       console.log(`  Brand: ${optimization.brand}`)
       console.log(`  Category: ${optimization.categoryName} (ID: ${optimization.categoryId})`)
 
+      // Step 2b: Block categories that carry a mandatory $20 insertion fee.
+      // These three eBay categories charge $20 per listing regardless of store subscription.
+      // Sources: ebay.com/help/selling/fees-credits-invoices/selling-fees?id=4822
+      if (HIGH_FEE_CATEGORY_IDS.has(optimization.categoryId)) {
+        const feeInfo = HIGH_FEE_CATEGORIES[optimization.categoryId]
+        const msg = `Category blocked: "${optimization.categoryName}" (ID: ${optimization.categoryId}) — ${feeInfo}. This category charges a mandatory $20 insertion fee per listing. Skipping to avoid unexpected charges.`
+        console.warn(`  BLOCKED: ${msg}`)
+        return { sku, status: 'failed', stage: 'category', error: msg, categoryId: optimization.categoryId, categoryName: optimization.categoryName }
+      }
+
       // Step 3: Get and fill category requirements
       this.reportProgress(index, total, sku, 'Requirements', 'Fetching category requirements...')
 
@@ -492,13 +528,16 @@ export class EbayListingService {
       }
 
       // Add filled aspects (don't overwrite protected ones)
-      const protectedAspects = new Set(['Brand', 'MPN', 'Condition'])
+      const protectedAspects = new Set(['Brand', 'MPN', 'Condition', 'Country of Origin'])
       for (const [name, value] of Object.entries(filledAspects)) {
         if (protectedAspects.has(name)) continue
         if (!value || (typeof value === 'string' && !value.trim())) continue
 
         aspects[name] = Array.isArray(value) ? value : [value]
       }
+
+      // Country of Origin: use scraped spec data if present, otherwise default to United States
+      aspects['Country of Origin'] = [getCountryOfOrigin(product.specifications)]
 
       // Step 4: Create inventory item
       this.reportProgress(index, total, sku, 'Inventory', 'Creating inventory item...')

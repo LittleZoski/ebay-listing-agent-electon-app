@@ -97,6 +97,47 @@ interface EbayAccount {
   processedFolder: string
   failedFolder: string
 
+  // Per-account Pricing Tier Overrides (optional - if set, takes priority over global settings)
+  amazonTier1MaxPrice?: number
+  amazonTier1Multiplier?: number
+  amazonTier2MaxPrice?: number
+  amazonTier2Multiplier?: number
+  amazonTier3MaxPrice?: number
+  amazonTier3Multiplier?: number
+  amazonTier4MaxPrice?: number
+  amazonTier4Multiplier?: number
+  amazonTier5MaxPrice?: number
+  amazonTier5Multiplier?: number
+  amazonTier6MaxPrice?: number
+  amazonTier6Multiplier?: number
+  amazonTier7Multiplier?: number
+  yamiTier1MaxPrice?: number
+  yamiTier1Multiplier?: number
+  yamiTier2MaxPrice?: number
+  yamiTier2Multiplier?: number
+  yamiTier3MaxPrice?: number
+  yamiTier3Multiplier?: number
+  yamiTier4MaxPrice?: number
+  yamiTier4Multiplier?: number
+  yamiTier5MaxPrice?: number
+  yamiTier5Multiplier?: number
+  yamiTier6MaxPrice?: number
+  yamiTier6Multiplier?: number
+  yamiTier7Multiplier?: number
+  costcoTier1MaxPrice?: number
+  costcoTier1Multiplier?: number
+  costcoTier2MaxPrice?: number
+  costcoTier2Multiplier?: number
+  costcoTier3MaxPrice?: number
+  costcoTier3Multiplier?: number
+  costcoTier4MaxPrice?: number
+  costcoTier4Multiplier?: number
+  costcoTier5MaxPrice?: number
+  costcoTier5Multiplier?: number
+  costcoTier6MaxPrice?: number
+  costcoTier6Multiplier?: number
+  costcoTier7Multiplier?: number
+
   // Timestamps
   createdAt: string
   lastAuthorized?: string
@@ -577,12 +618,40 @@ ipcMain.handle('update-account', async (_event: Electron.IpcMainInvokeEvent, acc
     'name', 'ebayAppId', 'ebayCertId', 'ebayDevId', 'ebayRedirectUri', 'ebayEnvironment',
     'paymentPolicyId', 'returnPolicyId', 'fulfillmentPolicyId',
     'defaultCategoryId', 'defaultMarketplace', 'ebaySiteId', 'defaultInventoryQuantity',
-    'watchFolder', 'processedFolder', 'failedFolder'
+    'watchFolder', 'processedFolder', 'failedFolder',
+    // Per-account pricing overrides
+    'amazonTier1MaxPrice', 'amazonTier1Multiplier',
+    'amazonTier2MaxPrice', 'amazonTier2Multiplier',
+    'amazonTier3MaxPrice', 'amazonTier3Multiplier',
+    'amazonTier4MaxPrice', 'amazonTier4Multiplier',
+    'amazonTier5MaxPrice', 'amazonTier5Multiplier',
+    'amazonTier6MaxPrice', 'amazonTier6Multiplier',
+    'amazonTier7Multiplier',
+    'yamiTier1MaxPrice', 'yamiTier1Multiplier',
+    'yamiTier2MaxPrice', 'yamiTier2Multiplier',
+    'yamiTier3MaxPrice', 'yamiTier3Multiplier',
+    'yamiTier4MaxPrice', 'yamiTier4Multiplier',
+    'yamiTier5MaxPrice', 'yamiTier5Multiplier',
+    'yamiTier6MaxPrice', 'yamiTier6Multiplier',
+    'yamiTier7Multiplier',
+    'costcoTier1MaxPrice', 'costcoTier1Multiplier',
+    'costcoTier2MaxPrice', 'costcoTier2Multiplier',
+    'costcoTier3MaxPrice', 'costcoTier3Multiplier',
+    'costcoTier4MaxPrice', 'costcoTier4Multiplier',
+    'costcoTier5MaxPrice', 'costcoTier5Multiplier',
+    'costcoTier6MaxPrice', 'costcoTier6Multiplier',
+    'costcoTier7Multiplier',
   ]
 
   for (const field of allowedFields) {
     if (updates[field] !== undefined) {
-      (account as unknown as Record<string, unknown>)[field] = updates[field]
+      const val = updates[field]
+      if (val === null) {
+        // null means "remove override" - delete the field from the account
+        delete (account as unknown as Record<string, unknown>)[field]
+      } else {
+        (account as unknown as Record<string, unknown>)[field] = val
+      }
     }
   }
 
@@ -778,9 +847,42 @@ ipcMain.handle('start-file-watcher', async () => {
       }
     })
 
+    // Build effective settings: global settings merged with account-specific pricing overrides
+    const pricingFields: (keyof GlobalSettings)[] = [
+      'amazonTier1MaxPrice', 'amazonTier1Multiplier',
+      'amazonTier2MaxPrice', 'amazonTier2Multiplier',
+      'amazonTier3MaxPrice', 'amazonTier3Multiplier',
+      'amazonTier4MaxPrice', 'amazonTier4Multiplier',
+      'amazonTier5MaxPrice', 'amazonTier5Multiplier',
+      'amazonTier6MaxPrice', 'amazonTier6Multiplier',
+      'amazonTier7Multiplier',
+      'yamiTier1MaxPrice', 'yamiTier1Multiplier',
+      'yamiTier2MaxPrice', 'yamiTier2Multiplier',
+      'yamiTier3MaxPrice', 'yamiTier3Multiplier',
+      'yamiTier4MaxPrice', 'yamiTier4Multiplier',
+      'yamiTier5MaxPrice', 'yamiTier5Multiplier',
+      'yamiTier6MaxPrice', 'yamiTier6Multiplier',
+      'yamiTier7Multiplier',
+      'costcoTier1MaxPrice', 'costcoTier1Multiplier',
+      'costcoTier2MaxPrice', 'costcoTier2Multiplier',
+      'costcoTier3MaxPrice', 'costcoTier3Multiplier',
+      'costcoTier4MaxPrice', 'costcoTier4Multiplier',
+      'costcoTier5MaxPrice', 'costcoTier5Multiplier',
+      'costcoTier6MaxPrice', 'costcoTier6Multiplier',
+      'costcoTier7Multiplier',
+    ]
+    const effectiveSettings: GlobalSettings = { ...data.globalSettings }
+    const effectiveSettingsMap = effectiveSettings as unknown as Record<string, number>
+    for (const field of pricingFields) {
+      const accountValue = (account as unknown as Record<string, unknown>)[field]
+      if (typeof accountValue === 'number') {
+        effectiveSettingsMap[field] = accountValue
+      }
+    }
+
     // Set the process callback to use our native listing service
     fileWatcher.setProcessCallback(async (processedFilePath: string) => {
-      return await processJsonFile(processedFilePath, account, data.globalSettings)
+      return await processJsonFile(processedFilePath, account, effectiveSettings)
     })
 
     // Start watching

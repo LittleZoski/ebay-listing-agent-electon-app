@@ -30,6 +30,47 @@ export interface EbayAccount {
   processedFolder: string
   failedFolder: string
 
+  // Per-account Pricing Tier Overrides (optional - if set, takes priority over global settings)
+  amazonTier1MaxPrice?: number
+  amazonTier1Multiplier?: number
+  amazonTier2MaxPrice?: number
+  amazonTier2Multiplier?: number
+  amazonTier3MaxPrice?: number
+  amazonTier3Multiplier?: number
+  amazonTier4MaxPrice?: number
+  amazonTier4Multiplier?: number
+  amazonTier5MaxPrice?: number
+  amazonTier5Multiplier?: number
+  amazonTier6MaxPrice?: number
+  amazonTier6Multiplier?: number
+  amazonTier7Multiplier?: number
+  yamiTier1MaxPrice?: number
+  yamiTier1Multiplier?: number
+  yamiTier2MaxPrice?: number
+  yamiTier2Multiplier?: number
+  yamiTier3MaxPrice?: number
+  yamiTier3Multiplier?: number
+  yamiTier4MaxPrice?: number
+  yamiTier4Multiplier?: number
+  yamiTier5MaxPrice?: number
+  yamiTier5Multiplier?: number
+  yamiTier6MaxPrice?: number
+  yamiTier6Multiplier?: number
+  yamiTier7Multiplier?: number
+  costcoTier1MaxPrice?: number
+  costcoTier1Multiplier?: number
+  costcoTier2MaxPrice?: number
+  costcoTier2Multiplier?: number
+  costcoTier3MaxPrice?: number
+  costcoTier3Multiplier?: number
+  costcoTier4MaxPrice?: number
+  costcoTier4Multiplier?: number
+  costcoTier5MaxPrice?: number
+  costcoTier5Multiplier?: number
+  costcoTier6MaxPrice?: number
+  costcoTier6Multiplier?: number
+  costcoTier7Multiplier?: number
+
   // Timestamps
   createdAt: string
   lastAuthorized?: string
