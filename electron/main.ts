@@ -30,6 +30,13 @@ import {
   MigrationResult,
   MigrationProgress,
 } from './services/listingsMigration'
+import {
+  initSessionLogger,
+  logReAuthorization,
+  startWatcherSession,
+  appendWatcherLog,
+  endWatcherSession,
+} from './services/sessionLogger'
 
 // ===== App Data Directory =====
 // Use Electron's userData path for all app data (tokens, accounts, etc.)
@@ -58,6 +65,7 @@ function initPaths(): void {
     }
 
     console.log('App data path:', APP_DATA_PATH)
+    initSessionLogger(APP_DATA_PATH)
   }
 }
 
@@ -467,6 +475,7 @@ function createWindow() {
 app.whenReady().then(createWindow)
 
 app.on('window-all-closed', () => {
+  endWatcherSession()
   stopPythonProcess()
   if (process.platform !== 'darwin') {
     app.quit()
@@ -767,10 +776,18 @@ ipcMain.handle('complete-authorization', async (_event: Electron.IpcMainInvokeEv
     saveAccounts(data)
 
     console.log('Authorization successful!')
+    initPaths()
+    logReAuthorization(account.id, account.name, account.ebayEnvironment || 'PRODUCTION', true)
     return { success: true, account }
   } catch (error) {
     console.error('Authorization error:', error)
-    throw new Error(`Authorization failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    const msg = error instanceof Error ? error.message : 'Unknown error'
+    // Best-effort log — account may be defined even on failure
+    try {
+      initPaths()
+      logReAuthorization(accountId, account?.name || accountId, account?.ebayEnvironment || 'PRODUCTION', false, msg)
+    } catch { /* ignore */ }
+    throw new Error(`Authorization failed: ${msg}`)
   }
 })
 
@@ -818,6 +835,7 @@ ipcMain.handle('start-file-watcher', async () => {
     fileWatcher.on('log', (message: string, level: string) => {
       const logMessage = `[${level.toUpperCase()}] ${message}`
       console.log(logMessage)
+      appendWatcherLog(logMessage)
       if (mainWindow) {
         mainWindow.webContents.send('watcher-output', { type: level, data: logMessage })
       }
@@ -828,22 +846,20 @@ ipcMain.handle('start-file-watcher', async () => {
     })
 
     fileWatcher.on('processing-start', (filePath: string, remaining: number) => {
+      const msg = `Processing: ${path.basename(filePath)} (${remaining} files remaining in queue)`
+      appendWatcherLog(`[INFO] ${msg}`)
       if (mainWindow) {
-        mainWindow.webContents.send('watcher-output', {
-          type: 'info',
-          data: `Processing: ${path.basename(filePath)} (${remaining} files remaining in queue)`,
-        })
+        mainWindow.webContents.send('watcher-output', { type: 'info', data: msg })
       }
     })
 
     fileWatcher.on('processing-complete', (filePath: string, success: boolean, error?: string) => {
+      const msg = success
+        ? `Completed: ${path.basename(filePath)}`
+        : `Failed: ${path.basename(filePath)} - ${error}`
+      appendWatcherLog(`[${success ? 'INFO' : 'ERROR'}] ${msg}`)
       if (mainWindow) {
-        mainWindow.webContents.send('watcher-output', {
-          type: success ? 'info' : 'error',
-          data: success
-            ? `Completed: ${path.basename(filePath)}`
-            : `Failed: ${path.basename(filePath)} - ${error}`,
-        })
+        mainWindow.webContents.send('watcher-output', { type: success ? 'info' : 'error', data: msg })
       }
     })
 
@@ -887,6 +903,7 @@ ipcMain.handle('start-file-watcher', async () => {
 
     // Start watching
     fileWatcher.start()
+    startWatcherSession(account.id, account.name, data.globalSettings.watchFolder || 'c:\\Users\\31243\\Downloads')
 
     return {
       success: true,
@@ -907,6 +924,7 @@ ipcMain.handle('stop-file-watcher', async () => {
   if (fileWatcher) {
     try {
       await fileWatcher.stop()
+      endWatcherSession()
       fileWatcher = null
       return { success: true, message: 'File watcher stopped' }
     } catch (error) {
@@ -1259,6 +1277,64 @@ function stopPythonProcess(): { success: boolean; message: string } {
   return { success: true, message: 'File watcher was not running' }
 }
 
+// ===== Error formatting helpers =====
+
+const STAGE_LABELS: Record<string, string> = {
+  category:   'Category Selection',
+  inventory:  'Create Inventory Item',
+  offer:      'Create/Update Offer',
+  publish:    'Publish Listing',
+  processing: 'Processing',
+}
+
+/**
+ * Parse a raw eBay API error string into a clean, human-readable message.
+ * eBay typically returns JSON with an `errors` array; we extract every
+ * message and any helpful parameter hints.  Falls back to the raw text
+ * when parsing fails.
+ */
+function parseEbayError(raw: string | undefined): string {
+  if (!raw) return 'Unknown error'
+
+  // Try JSON first
+  try {
+    const parsed = JSON.parse(raw)
+
+    // Shape: { errors: [{ message, parameters: [{ name, value }] }] }
+    const errors: Array<{ message?: string; longMessage?: string; parameters?: Array<{ name?: string; value?: string }> }> =
+      parsed.errors || parsed.error_description ? [{ message: parsed.error_description }] : []
+
+    if (errors.length > 0) {
+      const lines = errors.map((e, i) => {
+        const msg = e.longMessage || e.message || 'Unspecified error'
+        const params = (e.parameters || [])
+          .filter(p => p.name && p.value)
+          .map(p => `${p.name}="${p.value}"`)
+          .join(', ')
+        const prefix = errors.length > 1 ? `(${i + 1}) ` : ''
+        return params ? `${prefix}${msg} [${params}]` : `${prefix}${msg}`
+      })
+      return lines.join(' | ')
+    }
+
+    // Shape: { message: "..." } (OAuth errors, etc.)
+    if (typeof parsed.message === 'string') return parsed.message
+    if (typeof parsed.error === 'string') return parsed.error
+
+  } catch {
+    // Not JSON — fall through to raw text
+  }
+
+  // Raw text: strip excessive whitespace / newlines but keep it complete
+  return raw.replace(/\s+/g, ' ').trim()
+}
+
+function formatFailedResult(result: ListingResult): string {
+  const stageLabel = STAGE_LABELS[result.stage || ''] || result.stage || 'Unknown stage'
+  const errorMsg = parseEbayError(result.error)
+  return `FAILED [${stageLabel}] ${result.sku}\n  ${errorMsg}`
+}
+
 // Process a JSON file with Amazon products using native listing service
 async function processJsonFile(
   filePath: string,
@@ -1441,22 +1517,25 @@ async function processJsonFile(
       }
 
       for (const result of failed) {
+        const failedMsg = formatFailedResult(result)
+        appendWatcherLog(`[ERROR] ${failedMsg}`)
         mainWindow.webContents.send('watcher-output', {
           type: 'error',
-          data: `FAILED: ${result.sku} at ${result.stage}: ${result.error?.substring(0, 100)}`,
+          data: failedMsg,
         })
       }
     }
 
     return successful.length > 0
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorMessage = parseEbayError(error instanceof Error ? error.message : String(error))
     console.error('Error processing JSON file:', errorMessage)
+    appendWatcherLog(`[ERROR] File processing failed: ${errorMessage}`)
 
     if (mainWindow) {
       mainWindow.webContents.send('watcher-output', {
         type: 'error',
-        data: `Error processing file: ${errorMessage}`,
+        data: `FILE ERROR: ${errorMessage}`,
       })
     }
 

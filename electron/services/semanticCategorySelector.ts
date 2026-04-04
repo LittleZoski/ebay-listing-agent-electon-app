@@ -34,6 +34,7 @@ export interface OptimizationResult {
   brand: string
   categoryId: string
   categoryName: string
+  categoryPath: string
   confidence: number
   reasoning: string
 }
@@ -143,11 +144,13 @@ export class SemanticCategorySelector {
 
       // Find the selected category details
       let categoryName = ''
+      let categoryPath = ''
       let confidence = 0.0
 
       for (const match of topMatches) {
         if (match.categoryId === result.categoryId) {
           categoryName = match.name
+          categoryPath = match.path
           confidence = match.similarityScore
           break
         }
@@ -157,6 +160,7 @@ export class SemanticCategorySelector {
         // LLM picked something not in top 3? Use first match
         console.warn(`[SemanticSelector] LLM selected ${result.categoryId} not in top ${this.topK}, using first match`)
         categoryName = topMatches[0].name
+        categoryPath = topMatches[0].path
         result.categoryId = topMatches[0].categoryId
         confidence = topMatches[0].similarityScore
       }
@@ -165,6 +169,7 @@ export class SemanticCategorySelector {
       console.log(`  Optimized Title: ${result.optimizedTitle}`)
       console.log(`  Brand: ${result.brand}`)
       console.log(`  Category: ${categoryName} (ID: ${result.categoryId})`)
+      console.log(`  Path: ${categoryPath}`)
       console.log(`  Similarity Score: ${confidence.toFixed(3)}`)
 
       return {
@@ -172,6 +177,7 @@ export class SemanticCategorySelector {
         brand: result.brand,
         categoryId: result.categoryId,
         categoryName,
+        categoryPath,
         confidence,
         reasoning: result.reasoning,
       }
@@ -189,6 +195,7 @@ export class SemanticCategorySelector {
         brand,
         categoryId: topMatches[0].categoryId,
         categoryName: topMatches[0].name,
+        categoryPath: topMatches[0].path,
         confidence: topMatches[0].similarityScore,
         reasoning: 'Fallback due to LLM error',
       }

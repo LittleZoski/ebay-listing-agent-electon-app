@@ -15,15 +15,37 @@ import {
   AmazonProduct,
 } from './productMapper'
 
-// eBay categories that carry a mandatory $20 insertion fee per listing.
-// These are exempt from zero-insertion-fee programs regardless of store subscription.
+// eBay categories (and their entire subtrees) that carry a mandatory $20 insertion fee.
+// Blocked by BOTH exact category ID and path segment matching so child categories are caught.
 // Source: ebay.com/help/selling/fees-credits-invoices/selling-fees?id=4822
-const HIGH_FEE_CATEGORIES: Record<string, string> = {
-  '177641': 'Heavy Equipment (Business & Industrial > Heavy Equipment, Parts & Attachments)',
-  '67145':  'Food Trucks, Trailers & Carts (Business & Industrial > Restaurant & Food Service)',
-  '26247':  'Commercial Printing Presses (Business & Industrial > Printing & Graphic Arts)',
+const HIGH_FEE_CATEGORY_IDS = new Set(['177641', '67145', '26247'])
+
+// Path segments: if ANY of these appear in the full category path the item is blocked.
+// This catches every descendant of the Heavy Equipment parent, not just the top-level node.
+const HIGH_FEE_PATH_SEGMENTS = [
+  // Heavy Equipment and ALL its children (Compactors, Excavators, Bulldozers, etc.)
+  'Heavy Equipment, Parts & Attachments > Heavy Equipment',
+  // Food Trucks/Trailers (leaf-level, covered by ID but belt-and-suspenders)
+  'Food Trucks, Trailers & Carts',
+  // Commercial Printing Presses (leaf-level)
+  'Commercial Printing Presses',
+]
+
+/**
+ * Returns a human-readable reason if the category carries a mandatory $20 insertion fee,
+ * or null if the category is safe to list in.
+ */
+function getHighFeeCategoryReason(categoryId: string, categoryPath: string): string | null {
+  if (HIGH_FEE_CATEGORY_IDS.has(categoryId)) {
+    return `category ID ${categoryId} is on the $20-insertion-fee list`
+  }
+  for (const segment of HIGH_FEE_PATH_SEGMENTS) {
+    if (categoryPath.includes(segment)) {
+      return `category path contains "${segment}" which carries a mandatory $20 insertion fee`
+    }
+  }
+  return null
 }
-const HIGH_FEE_CATEGORY_IDS = new Set(Object.keys(HIGH_FEE_CATEGORIES))
 
 export interface EbayAccount {
   id: string
@@ -490,11 +512,10 @@ export class EbayListingService {
       console.log(`  Category: ${optimization.categoryName} (ID: ${optimization.categoryId})`)
 
       // Step 2b: Block categories that carry a mandatory $20 insertion fee.
-      // These three eBay categories charge $20 per listing regardless of store subscription.
-      // Sources: ebay.com/help/selling/fees-credits-invoices/selling-fees?id=4822
-      if (HIGH_FEE_CATEGORY_IDS.has(optimization.categoryId)) {
-        const feeInfo = HIGH_FEE_CATEGORIES[optimization.categoryId]
-        const msg = `Category blocked: "${optimization.categoryName}" (ID: ${optimization.categoryId}) — ${feeInfo}. This category charges a mandatory $20 insertion fee per listing. Skipping to avoid unexpected charges.`
+      // Checks both the exact category ID and the full path so child categories are caught.
+      const highFeeReason = getHighFeeCategoryReason(optimization.categoryId, optimization.categoryPath)
+      if (highFeeReason) {
+        const msg = `Category blocked: "${optimization.categoryName}" (ID: ${optimization.categoryId}, path: ${optimization.categoryPath}) — ${highFeeReason}. Skipping to avoid the mandatory $20 insertion fee.`
         console.warn(`  BLOCKED: ${msg}`)
         return { sku, status: 'failed', stage: 'category', error: msg, categoryId: optimization.categoryId, categoryName: optimization.categoryName }
       }
