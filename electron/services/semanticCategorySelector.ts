@@ -312,7 +312,7 @@ OUTPUT FORMAT (JSON only, no explanations outside JSON):
 }`
 
     const response = await this.client.messages.create({
-      model: 'claude-3-haiku-20240307',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 500,
       temperature: 0.2,
       messages: [{ role: 'user', content: prompt }],
@@ -525,7 +525,7 @@ OUTPUT FORMAT (JSON only, no explanations outside JSON):
 
     try {
       const response = await this.client.messages.create({
-        model: 'claude-3-haiku-20240307',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 3000,
         temperature: 0,
         messages: [{ role: 'user', content: prompt }],

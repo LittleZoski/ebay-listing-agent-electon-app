@@ -37,6 +37,23 @@ import {
   appendWatcherLog,
   endWatcherSession,
 } from './services/sessionLogger'
+import {
+  checkAmazonPrices,
+  abortPriceCheck,
+  showAmazonLoginWindow,
+  closeScraperWindow,
+  setAiApiKey,
+  PriceCheckBatch,
+  PriceCheckProgress,
+  PriceCheckResult,
+} from './services/amazonPriceChecker'
+import {
+  updateListingPrice,
+  endListing,
+  getAccessToken,
+  UpdatePriceResult,
+  EndListingResult,
+} from './services/ebayListingUpdateService'
 
 // ===== App Data Directory =====
 // Use Electron's userData path for all app data (tokens, accounts, etc.)
@@ -1257,6 +1274,261 @@ ipcMain.handle('list-listing-exports', async (
     folder: listingService.getOutputFolder(),
   }
 })
+
+// ===== Amazon Price Check IPC Handlers =====
+
+const PRICE_CHECK_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+
+function getPriceCheckCacheDir(): string {
+  initPaths()
+  const dir = path.join(APP_DATA_PATH, 'price-check-cache')
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+  return dir
+}
+
+function loadPriceCheckCache(accountId: string): Record<string, PriceCheckResult> {
+  try {
+    const p = path.join(getPriceCheckCacheDir(), `${accountId || 'default'}.json`)
+    if (!fs.existsSync(p)) return {}
+    return JSON.parse(fs.readFileSync(p, 'utf8'))
+  } catch { return {} }
+}
+
+function savePriceCheckCache(accountId: string, cache: Record<string, PriceCheckResult>): void {
+  try {
+    const p = path.join(getPriceCheckCacheDir(), `${accountId || 'default'}.json`)
+    // Evict entries older than TTL to keep the file small
+    const now = Date.now()
+    const pruned: Record<string, PriceCheckResult> = {}
+    for (const [sku, r] of Object.entries(cache)) {
+      if (now - new Date(r.checkedAt).getTime() < PRICE_CHECK_CACHE_TTL_MS) pruned[sku] = r
+    }
+    fs.writeFileSync(p, JSON.stringify(pruned), 'utf8')
+  } catch { /* non-critical */ }
+}
+
+ipcMain.handle(
+  'check-amazon-prices',
+  async (
+    _event: Electron.IpcMainInvokeEvent,
+    accountId: string,
+    listings: Array<{ sku: string; listingId: string; title: string; price: { value: string }; imageUrl?: string | null }>
+  ): Promise<PriceCheckBatch> => {
+    initPaths()
+    // Provide the AI API key so the price checker can use Claude for best-match selection
+    try {
+      const accountsData = JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf8'))
+      const apiKey = accountsData?.globalSettings?.anthropicApiKey
+      if (apiKey) setAiApiKey(apiKey)
+    } catch { /* ignore — AI matching is optional */ }
+
+    // Load 48-hour cache and split listings into cached vs needs-scan
+    const cache = loadPriceCheckCache(accountId)
+    const now = Date.now()
+    const cachedResults: PriceCheckResult[] = []
+    const toScan = listings.filter(l => {
+      const hit = cache[l.sku]
+      if (hit && (now - new Date(hit.checkedAt).getTime()) < PRICE_CHECK_CACHE_TTL_MS) {
+        cachedResults.push(hit)
+        return false
+      }
+      return true
+    })
+
+    let freshBatch: PriceCheckBatch = { results: [], totalChecked: 0, checkableListings: 0, needsAttention: 0 }
+    if (toScan.length > 0) {
+      // Write to cache every 25 results so interrupted scans don't lose progress
+      let pendingSaveCount = 0
+      freshBatch = await checkAmazonPrices(
+        toScan,
+        (progress: PriceCheckProgress) => {
+          if (mainWindow) mainWindow.webContents.send('amazon-price-check-progress', progress)
+        },
+        (result: PriceCheckResult) => {
+          cache[result.sku] = result
+          pendingSaveCount++
+          if (pendingSaveCount >= 25) {
+            savePriceCheckCache(accountId, cache)
+            pendingSaveCount = 0
+          }
+        }
+      )
+      // Final save for any remaining unsaved results
+      savePriceCheckCache(accountId, cache)
+    }
+
+    const allResults = [...cachedResults, ...freshBatch.results]
+    return {
+      results: allResults,
+      totalChecked: allResults.length,
+      checkableListings: allResults.length,
+      needsAttention: allResults.filter(r => r.method === 'error' || !r.isAvailable || (r.multiplier !== null && r.multiplier < 2)).length,
+      cachedCount: cachedResults.length,
+    }
+  }
+)
+
+ipcMain.handle('abort-amazon-price-check', async (): Promise<{ success: boolean }> => {
+  abortPriceCheck()
+  closeScraperWindow()
+  return { success: true }
+})
+
+ipcMain.handle('open-amazon-login', async (): Promise<{ success: boolean }> => {
+  showAmazonLoginWindow()
+  return { success: true }
+})
+
+// Price check failures persistence
+ipcMain.handle(
+  'save-price-check-failures',
+  async (
+    _event: Electron.IpcMainInvokeEvent,
+    accountId: string,
+    data: { failures: unknown[]; savedAt: string; totalChecked: number }
+  ): Promise<{ success: boolean }> => {
+    initPaths()
+    const failuresDir = path.join(APP_DATA_PATH, 'price-check-failures')
+    if (!fs.existsSync(failuresDir)) fs.mkdirSync(failuresDir, { recursive: true })
+    const filePath = path.join(failuresDir, `${accountId || 'default'}.json`)
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8')
+    return { success: true }
+  }
+)
+
+ipcMain.handle(
+  'load-price-check-failures',
+  async (
+    _event: Electron.IpcMainInvokeEvent,
+    accountId: string
+  ): Promise<{ failures: unknown[]; savedAt: string; totalChecked: number } | null> => {
+    initPaths()
+    const filePath = path.join(APP_DATA_PATH, 'price-check-failures', `${accountId || 'default'}.json`)
+    if (!fs.existsSync(filePath)) return null
+    try {
+      return JSON.parse(fs.readFileSync(filePath, 'utf8'))
+    } catch {
+      return null
+    }
+  }
+)
+
+// ===== eBay Listing Update IPC Handlers =====
+
+function applyCharmPricing(raw: number, strategy: string): number {
+  const base = Math.floor(raw)
+  if (strategy === 'always_49') return base + 0.49
+  // always_99 or tiered (use .99 for tiered MVP)
+  return base + 0.99
+}
+
+ipcMain.handle(
+  'update-listing-price',
+  async (
+    _event: Electron.IpcMainInvokeEvent,
+    accountId: string,
+    sku: string,
+    sourcePrice: number,
+    multiplier = 2.1
+  ): Promise<UpdatePriceResult> => {
+    initPaths()
+    const data = loadAccounts()
+    const account = data.accounts.find(a => a.id === accountId)
+    if (!account) return { success: false, sku, newPrice: 0, error: 'Account not found' }
+
+    const newPrice = applyCharmPricing(sourcePrice * multiplier, data.globalSettings.charmPricingStrategy)
+    return updateListingPrice(account, sku, newPrice)
+  }
+)
+
+ipcMain.handle(
+  'end-listing',
+  async (
+    _event: Electron.IpcMainInvokeEvent,
+    accountId: string,
+    sku: string
+  ): Promise<EndListingResult> => {
+    initPaths()
+    const data = loadAccounts()
+    const account = data.accounts.find(a => a.id === accountId)
+    if (!account) return { success: false, sku, error: 'Account not found' }
+
+    return endListing(account, sku)
+  }
+)
+
+const AUTO_FIX_CONCURRENCY = 5  // concurrent eBay API workers
+
+ipcMain.handle(
+  'auto-fix-listings',
+  async (
+    _event: Electron.IpcMainInvokeEvent,
+    accountId: string,
+    failures: Array<{ sku: string; sourcePrice: number | null; failureReason: string }>,
+    multiplier = 2.1
+  ): Promise<{ results: Array<UpdatePriceResult | EndListingResult> }> => {
+    initPaths()
+    const data = loadAccounts()
+    const account = data.accounts.find(a => a.id === accountId)
+    if (!account) return { results: [{ success: false, sku: '', error: 'Account not found' }] }
+
+    // Fetch token once — avoids 5000+ redundant token file reads and concurrent refresh races
+    const token = await getAccessToken(account)
+    if (!token) return { results: [{ success: false, sku: '', error: 'Could not load access token' }] }
+
+    const results: Array<UpdatePriceResult | EndListingResult> = new Array(failures.length)
+    let completedCount = 0
+    let succeeded = 0
+    let failed = 0
+
+    // Run AUTO_FIX_CONCURRENCY workers in parallel — each takes every Nth item
+    await Promise.all(
+      Array.from({ length: Math.min(AUTO_FIX_CONCURRENCY, failures.length) }, async (_, workerIdx) => {
+        for (let i = workerIdx; i < failures.length; i += AUTO_FIX_CONCURRENCY) {
+          const f = failures[i]
+          let result: UpdatePriceResult | EndListingResult
+          let action: 'update_price' | 'end_listing' | 'skip'
+
+          try {
+            if (f.failureReason === 'unavailable' || f.failureReason === 'both') {
+              action = 'end_listing'
+              result = await endListing(account, f.sku, token)
+            } else if (f.sourcePrice !== null) {
+              action = 'update_price'
+              const newPrice = applyCharmPricing(f.sourcePrice * multiplier, data.globalSettings.charmPricingStrategy)
+              result = await updateListingPrice(account, f.sku, newPrice, token)
+            } else {
+              action = 'skip'
+              result = { success: false, sku: f.sku, newPrice: 0, error: 'No source price available' }
+            }
+          } catch (err) {
+            action = 'skip'
+            result = { success: false, sku: f.sku, newPrice: 0, error: (err as Error).message }
+          }
+
+          // JS is single-threaded at await boundaries — these increments are safe
+          completedCount++
+          if (result.success) succeeded++; else failed++
+          results[i] = result
+
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('auto-fix-progress', {
+              current: completedCount,
+              total: failures.length,
+              sku: f.sku,
+              action,
+              succeeded,
+              failed,
+              result,
+            })
+          }
+        }
+      })
+    )
+
+    return { results: results.filter(Boolean) }
+  }
+)
 
 // Helper function to stop Python process
 function stopPythonProcess(): { success: boolean; message: string } {

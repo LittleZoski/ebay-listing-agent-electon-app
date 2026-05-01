@@ -35,6 +35,19 @@ const HIGH_FEE_PATH_SEGMENTS = [
  * Returns a human-readable reason if the category carries a mandatory $20 insertion fee,
  * or null if the category is safe to list in.
  */
+function parseEbayErrors(errorText: string): string | null {
+  try {
+    const parsed = JSON.parse(errorText)
+    const errors: Array<{ errorId: number; message: string; longMessage?: string }> = parsed.errors ?? []
+    if (errors.length === 0) return null
+    return errors
+      .map(e => `[${e.errorId}] ${e.longMessage ?? e.message}`)
+      .join(' | ')
+  } catch {
+    return null
+  }
+}
+
 function getHighFeeCategoryReason(categoryId: string, categoryPath: string): string | null {
   if (HIGH_FEE_CATEGORY_IDS.has(categoryId)) {
     return `category ID ${categoryId} is on the $20-insertion-fee list`
@@ -368,7 +381,8 @@ export class EbayListingService {
       return { success: true }
     } else {
       const errorText = await response.text()
-      console.error('  Inventory item error:', errorText)
+      const friendly = parseEbayErrors(errorText)
+      console.error('  Inventory item error:', friendly ?? errorText)
       return { success: false, error: errorText }
     }
   }
@@ -441,7 +455,9 @@ export class EbayListingService {
         const data = await response.json()
         offerId = data.offerId
       } else {
-        return { success: false, error: await response.text() }
+        const errorText = await response.text()
+        console.error('  Offer create error:', parseEbayErrors(errorText) ?? errorText)
+        return { success: false, error: errorText }
       }
     }
 
@@ -449,7 +465,9 @@ export class EbayListingService {
       console.log(`  Offer ${existingOfferId ? 'updated' : 'created'} (ID: ${offerId!})`)
       return { success: true, offerId: offerId! }
     } else {
-      return { success: false, error: await response.text() }
+      const errorText = await response.text()
+      console.error('  Offer update error:', parseEbayErrors(errorText) ?? errorText)
+      return { success: false, error: errorText }
     }
   }
 
@@ -469,7 +487,9 @@ export class EbayListingService {
       const data = await response.json()
       return { success: true, listingId: data.listingId }
     } else {
-      return { success: false, error: await response.text() }
+      const errorText = await response.text()
+      console.error('  Publish error:', parseEbayErrors(errorText) ?? errorText)
+      return { success: false, error: errorText }
     }
   }
 
@@ -725,7 +745,12 @@ export class EbayListingService {
       for (const result of failed) {
         console.log(`  - ${result.sku}: Failed at ${result.stage}`)
         if (result.error) {
-          console.log(`    Error: ${result.error.substring(0, 100)}...`)
+          const friendlyErrors = parseEbayErrors(result.error)
+          if (friendlyErrors) {
+            console.log(`    Error: ${friendlyErrors}`)
+          } else {
+            console.log(`    Error: ${result.error}`)
+          }
         }
       }
     }

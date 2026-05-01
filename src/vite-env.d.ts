@@ -239,6 +239,77 @@ interface ListingProgress {
   message: string
 }
 
+interface AmazonPriceResult {
+  sku: string
+  ebayListingId: string
+  listingSource: 'amazon' | 'yami' | 'costco' | 'unknown'
+  sourceId: string | null
+  sourcePrice: number | null
+  sourceTitle: string | null
+  sourceUrl: string | null
+  isAvailable: boolean
+  ebayPrice: number
+  multiplier: number | null
+  method: 'direct' | 'search' | 'not_checkable' | 'error'
+  error?: string
+  checkedAt: string
+}
+
+interface AmazonPriceCheckBatch {
+  results: AmazonPriceResult[]
+  totalChecked: number
+  checkableListings: number
+  needsAttention: number
+  cachedCount?: number
+}
+
+interface AmazonPriceCheckProgress {
+  current: number
+  total: number
+  sku: string
+  status: string
+}
+
+interface AutoFixProgress {
+  current: number
+  total: number
+  sku: string
+  action: 'update_price' | 'end_listing' | 'skip'
+  succeeded: number
+  failed: number
+  result: { success: boolean; sku: string; newPrice?: number; error?: string }
+}
+
+interface SavedFailure {
+  sku: string
+  ebayListingId: string
+  ebayTitle: string
+  listingSource: 'amazon' | 'yami' | 'costco' | 'unknown'
+  ebayPrice: number
+  sourcePrice: number | null
+  multiplier: number | null
+  isAvailable: boolean
+  sourceUrl: string | null
+  failureReason: 'price' | 'unavailable' | 'both' | 'error'
+  error?: string
+  checkedAt: string
+}
+
+interface PersistedFailures {
+  failures: SavedFailure[]
+  savedAt: string
+  totalChecked: number
+  source: 'all' | 'amazon' | 'yami' | 'costco'
+}
+
+interface ListingUpdateResult {
+  success: boolean
+  sku: string
+  newPrice?: number
+  offerId?: string
+  error?: string
+}
+
 interface ElectronAPI {
   // Account management
   getAccounts: () => Promise<AccountsResponse>
@@ -278,6 +349,23 @@ interface ElectronAPI {
     dateRange?: { start: string; end: string }
   ) => Promise<ListingSnapshot[]>
   listListingExports: (accountId?: string) => Promise<{ files: string[]; folder: string }>
+
+  // Amazon Price Checker
+  checkAmazonPrices: (
+    accountId: string,
+    listings: Array<{ sku: string; listingId: string; title: string; price: { value: string }; imageUrl?: string | null }>
+  ) => Promise<AmazonPriceCheckBatch>
+  abortAmazonPriceCheck: () => Promise<{ success: boolean }>
+  openAmazonLogin: () => Promise<{ success: boolean }>
+  onAmazonPriceCheckProgress: (callback: (data: AmazonPriceCheckProgress) => void) => () => void
+  onAutoFixProgress: (callback: (data: AutoFixProgress) => void) => () => void
+  savePriceCheckFailures: (accountId: string, data: PersistedFailures) => Promise<{ success: boolean }>
+  loadPriceCheckFailures: (accountId: string) => Promise<PersistedFailures | null>
+
+  // eBay listing updates
+  updateListingPrice: (accountId: string, sku: string, sourcePrice: number, multiplier?: number) => Promise<ListingUpdateResult>
+  endListing: (accountId: string, sku: string) => Promise<ListingUpdateResult>
+  autoFixListings: (accountId: string, failures: Array<{ sku: string; sourcePrice: number | null; failureReason: string }>, multiplier?: number) => Promise<{ results: ListingUpdateResult[] }>
 
   // Event listeners
   onWatcherOutput: (callback: (data: { type: string; data: string }) => void) => () => void

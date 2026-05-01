@@ -39,7 +39,7 @@ export class FileWatcher extends EventEmitter {
     super()
     this.config = {
       ...config,
-      filePattern: config.filePattern || /amazon-products-.*\.json$/i,
+      filePattern: config.filePattern || /(amazon|yami|costco)-products-.*\.json$/i,
     }
 
     // Ensure folders exist
@@ -111,7 +111,7 @@ export class FileWatcher extends EventEmitter {
     this.log('=' .repeat(70), 'info')
     this.log('File Watcher Started', 'info')
     this.log('=' .repeat(70), 'info')
-    this.log(`Waiting for Amazon product JSON files...`, 'info')
+    this.log(`Waiting for Amazon/Yami/Costco product JSON files...`, 'info')
     this.log(`Mode: Queue-based processing (one file at a time)`, 'info')
 
     this.emit('watcher-started', this.config.watchFolder)
@@ -173,7 +173,7 @@ export class FileWatcher extends EventEmitter {
       return
     }
 
-    this.log(`New Amazon product file detected: ${fileName}`, 'info')
+    this.log(`New product file detected: ${fileName}`, 'info')
     this.emit('file-detected', filePath, fileName)
 
     // Check if file still exists

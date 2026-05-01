@@ -217,6 +217,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ) => ipcRenderer.invoke('get-listing-history', accountId, listingId, dateRange),
   listListingExports: (accountId?: string) => ipcRenderer.invoke('list-listing-exports', accountId),
 
+  // Amazon Price Checker
+  checkAmazonPrices: (accountId: string, listings: Array<{ sku: string; listingId: string; title: string; price: { value: string }; imageUrl?: string | null }>) =>
+    ipcRenderer.invoke('check-amazon-prices', accountId, listings),
+  abortAmazonPriceCheck: () => ipcRenderer.invoke('abort-amazon-price-check'),
+  openAmazonLogin: () => ipcRenderer.invoke('open-amazon-login'),
+  onAmazonPriceCheckProgress: (callback: (data: AmazonPriceCheckProgress) => void) => {
+    ipcRenderer.on('amazon-price-check-progress', (_event, data) => callback(data))
+    return () => ipcRenderer.removeAllListeners('amazon-price-check-progress')
+  },
+  onAutoFixProgress: (callback: (data: AutoFixProgress) => void) => {
+    ipcRenderer.on('auto-fix-progress', (_event, data) => callback(data))
+    return () => ipcRenderer.removeAllListeners('auto-fix-progress')
+  },
+  savePriceCheckFailures: (accountId: string, data: PersistedFailures) =>
+    ipcRenderer.invoke('save-price-check-failures', accountId, data),
+  loadPriceCheckFailures: (accountId: string) =>
+    ipcRenderer.invoke('load-price-check-failures', accountId),
+
+  // eBay listing updates
+  updateListingPrice: (accountId: string, sku: string, sourcePrice: number, multiplier?: number) =>
+    ipcRenderer.invoke('update-listing-price', accountId, sku, sourcePrice, multiplier),
+  endListing: (accountId: string, sku: string) =>
+    ipcRenderer.invoke('end-listing', accountId, sku),
+  autoFixListings: (accountId: string, failures: Array<{ sku: string; sourcePrice: number | null; failureReason: string }>, multiplier?: number) =>
+    ipcRenderer.invoke('auto-fix-listings', accountId, failures, multiplier),
+
   // Utilities
   openExternalUrl: (url: string) => ipcRenderer.invoke('open-external-url', url),
 
@@ -299,6 +325,23 @@ export interface ElectronAPI {
     dateRange?: { start: string; end: string }
   ) => Promise<ListingSnapshot[]>
   listListingExports: (accountId?: string) => Promise<{ files: string[]; folder: string }>
+
+  // Amazon Price Checker
+  checkAmazonPrices: (
+    accountId: string,
+    listings: Array<{ sku: string; listingId: string; title: string; price: { value: string }; imageUrl?: string | null }>
+  ) => Promise<AmazonPriceCheckBatch>
+  abortAmazonPriceCheck: () => Promise<{ success: boolean }>
+  openAmazonLogin: () => Promise<{ success: boolean }>
+  onAmazonPriceCheckProgress: (callback: (data: AmazonPriceCheckProgress) => void) => () => void
+  onAutoFixProgress: (callback: (data: AutoFixProgress) => void) => () => void
+  savePriceCheckFailures: (accountId: string, data: PersistedFailures) => Promise<{ success: boolean }>
+  loadPriceCheckFailures: (accountId: string) => Promise<PersistedFailures | null>
+
+  // eBay listing updates
+  updateListingPrice: (accountId: string, sku: string, sourcePrice: number, multiplier?: number) => Promise<ListingUpdateResult>
+  endListing: (accountId: string, sku: string) => Promise<ListingUpdateResult>
+  autoFixListings: (accountId: string, failures: Array<{ sku: string; sourcePrice: number | null; failureReason: string }>, multiplier?: number) => Promise<{ results: ListingUpdateResult[] }>
 
   // Utilities
   openExternalUrl: (url: string) => Promise<{ success: boolean; error?: string }>
@@ -446,6 +489,78 @@ export interface ListingProgress {
   current: number
   total: number
   message: string
+}
+
+// ===== Amazon Price Checker Types =====
+
+export interface AmazonPriceResult {
+  sku: string
+  ebayListingId: string
+  listingSource: 'amazon' | 'yami' | 'costco' | 'unknown'
+  sourceId: string | null
+  sourcePrice: number | null
+  sourceTitle: string | null
+  sourceUrl: string | null
+  isAvailable: boolean
+  ebayPrice: number
+  multiplier: number | null
+  method: 'direct' | 'search' | 'not_checkable' | 'error'
+  error?: string
+  checkedAt: string
+}
+
+export interface AmazonPriceCheckBatch {
+  results: AmazonPriceResult[]
+  totalChecked: number
+  checkableListings: number
+  needsAttention: number
+}
+
+export interface AmazonPriceCheckProgress {
+  current: number
+  total: number
+  sku: string
+  status: string
+}
+
+export interface AutoFixProgress {
+  current: number
+  total: number
+  sku: string
+  action: 'update_price' | 'end_listing' | 'skip'
+  succeeded: number
+  failed: number
+  result: { success: boolean; sku: string; newPrice?: number; error?: string }
+}
+
+export interface SavedFailure {
+  sku: string
+  ebayListingId: string
+  ebayTitle: string
+  listingSource: 'amazon' | 'yami' | 'costco' | 'unknown'
+  ebayPrice: number
+  sourcePrice: number | null
+  multiplier: number | null
+  isAvailable: boolean
+  sourceUrl: string | null
+  failureReason: 'price' | 'unavailable' | 'both' | 'error'
+  error?: string
+  checkedAt: string
+}
+
+export interface PersistedFailures {
+  failures: SavedFailure[]
+  savedAt: string
+  totalChecked: number
+  source: 'all' | 'amazon' | 'yami' | 'costco'
+}
+
+export interface ListingUpdateResult {
+  success: boolean
+  sku: string
+  newPrice?: number
+  offerId?: string
+  error?: string
 }
 
 // ===== Published Listings Database Types =====

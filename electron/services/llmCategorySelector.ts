@@ -114,7 +114,7 @@ export class LLMCategorySelector {
 
     try {
       const response = await this.client.messages.create({
-        model: 'claude-3-haiku-20240307',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 700,
         temperature: 0.3,
         messages: [{ role: 'user', content: prompt }],
@@ -434,7 +434,7 @@ OUTPUT FORMAT (JSON only, no explanations):
 
     try {
       const response = await this.client.messages.create({
-        model: 'claude-3-haiku-20240307',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 3000,
         temperature: 0,
         messages: [{ role: 'user', content: prompt }],
