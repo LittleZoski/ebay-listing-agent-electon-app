@@ -94,6 +94,9 @@ interface GlobalSettings {
 
   // Category Selection Settings
   categoryCandidatesTopK: number
+
+  // Listing Scanner Settings
+  amazonPoolSize: number
 }
 
 interface AccountsResponse {
@@ -353,7 +356,8 @@ interface ElectronAPI {
   // Amazon Price Checker
   checkAmazonPrices: (
     accountId: string,
-    listings: Array<{ sku: string; listingId: string; title: string; price: { value: string }; imageUrl?: string | null }>
+    listings: Array<{ sku: string; listingId: string; title: string; price: { value: string }; imageUrl?: string | null }>,
+    forceRescan?: boolean
   ) => Promise<AmazonPriceCheckBatch>
   abortAmazonPriceCheck: () => Promise<{ success: boolean }>
   openAmazonLogin: () => Promise<{ success: boolean }>
@@ -361,6 +365,7 @@ interface ElectronAPI {
   onAutoFixProgress: (callback: (data: AutoFixProgress) => void) => () => void
   savePriceCheckFailures: (accountId: string, data: PersistedFailures) => Promise<{ success: boolean }>
   loadPriceCheckFailures: (accountId: string) => Promise<PersistedFailures | null>
+  clearPriceCheckCacheEntries: (accountId: string, skus: string[]) => Promise<{ success: boolean }>
 
   // eBay listing updates
   updateListingPrice: (accountId: string, sku: string, sourcePrice: number, multiplier?: number) => Promise<ListingUpdateResult>

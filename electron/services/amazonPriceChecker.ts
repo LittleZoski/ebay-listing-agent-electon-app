@@ -160,11 +160,39 @@ async function findBestMatchWithAI(
 // Utilities
 // ============================================================================
 
-const AMAZON_SESSION_PARTITION = 'persist:amazon-checker'
 const PAGE_LOAD_TIMEOUT = 25000
-const POOL_SIZE = 3           // concurrent scraper windows (3 avoids aggressive rate limiting)
-const STAGGER_DELAY = 800     // ms between each worker's first request start
-const INTER_REQUEST_DELAY = 1200  // ms delay within each worker after completing a check
+
+// Domain-specific pool sizes — windows never switch domains so session cookies stay active
+const AMAZON_POOL_SIZE = 5
+const YAMI_POOL_SIZE = 2
+const COSTCO_POOL_SIZE = 1
+const TOTAL_POOL_SIZE = AMAZON_POOL_SIZE + YAMI_POOL_SIZE + COSTCO_POOL_SIZE  // 8 workers total
+
+// Stagger + inter-request delays — reduced since each domain pool has its own rate limit budget
+const STAGGER_DELAY = 300
+const INTER_REQUEST_DELAY = 600
+
+// Settle delays after did-finish-load per domain
+// Amazon: SSR — price in initial HTML, 600ms is sufficient
+// Yami/Costco: client-side React SPAs — need more time for JS render
+const SETTLE_AMAZON = 600
+const SETTLE_YAMI = 1000
+const SETTLE_COSTCO_SEARCH = 1200
+const SETTLE_COSTCO_PRODUCT = 1500
+
+// Separate session partitions per domain: cookies don't bleed across sites,
+// and Amazon login state is shared among all Amazon workers
+const SESSION_AMAZON = 'persist:checker-amazon'
+const SESSION_YAMI = 'persist:checker-yami'
+const SESSION_COSTCO = 'persist:checker-costco'
+
+let configAmazonPoolSize = AMAZON_POOL_SIZE  // overridable via setScannerConfig
+
+export function setScannerConfig(config: { amazonPoolSize?: number }): void {
+  if (config.amazonPoolSize !== undefined) {
+    configAmazonPoolSize = Math.max(1, Math.min(config.amazonPoolSize, TOTAL_POOL_SIZE))
+  }
+}
 
 function parsePrice(priceStr: string | null): number | null {
   if (!priceStr) return null
@@ -177,20 +205,31 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-const scraperPool: (BrowserWindow | null)[] = new Array(POOL_SIZE).fill(null)
+const scraperPool: (BrowserWindow | null)[] = new Array(TOTAL_POOL_SIZE).fill(null)
+const scraperSlotSession: string[] = new Array(TOTAL_POOL_SIZE).fill('')
 let abortFlag = false
 
-function getOrCreateScraperWindow(slot = 0): BrowserWindow {
-  if (scraperPool[slot] && !scraperPool[slot]!.isDestroyed()) return scraperPool[slot]!
-  const ses = session.fromPartition(AMAZON_SESSION_PARTITION)
+function getOrCreateScraperWindow(slot = 0, sessionPartition = SESSION_AMAZON): BrowserWindow {
+  // Destroy and recreate if the slot's session no longer matches what we need.
+  // This happens when a Yami/Costco slot gets reassigned to Amazon for a pure-Amazon scan.
+  if (scraperPool[slot] && !scraperPool[slot]!.isDestroyed()) {
+    if (scraperSlotSession[slot] === sessionPartition) return scraperPool[slot]!
+    scraperPool[slot]!.destroy()
+    scraperPool[slot] = null
+  }
+  const ses = session.fromPartition(sessionPartition)
+  // Amazon works at 800px. Yami/Costco are React SPAs that switch to mobile layout
+  // below ~1024px — use full desktop width so class names match our extraction scripts.
+  const isAmazonSession = sessionPartition === SESSION_AMAZON
   const win = new BrowserWindow({
     show: false,
-    width: 1280,
-    height: 900,
+    width: isAmazonSession ? 800 : 1280,
+    height: 600,
     webPreferences: { session: ses, nodeIntegration: false, contextIsolation: true },
   })
-  win.on('closed', () => { scraperPool[slot] = null })
+  win.on('closed', () => { scraperPool[slot] = null; scraperSlotSession[slot] = '' })
   scraperPool[slot] = win
+  scraperSlotSession[slot] = sessionPartition
   return win
 }
 
@@ -221,6 +260,9 @@ async function loadAndExtract<T>(
 
     win.webContents.once('did-finish-load', async () => {
       clearTimeout(timer)
+      // Clean up the fail listener — .once() only auto-removes when it fires.
+      // Without this, stale did-fail-load listeners accumulate across page loads.
+      if (!win.isDestroyed()) win.webContents.removeAllListeners('did-fail-load')
       try {
         await delay(settle)
         if (win.isDestroyed()) { reject(new Error('Window closed during settle')); return }
@@ -401,7 +443,7 @@ async function checkAmazon(
   let directData: DirectExtract | null = null
   try {
     onStatus?.(`Loading amazon.com/dp/${asin}`)
-    directData = await loadAndExtract<DirectExtract>(win, directUrl, AMAZON_PRODUCT_EXTRACT)
+    directData = await loadAndExtract<DirectExtract>(win, directUrl, AMAZON_PRODUCT_EXTRACT, SETTLE_AMAZON)
   } catch (_) { /* network/timeout — fall through */ }
 
   if (directData?.isCaptcha) {
@@ -415,7 +457,7 @@ async function checkAmazon(
     onStatus?.('ASIN gone — searching similar item (reference only)')
     try {
       const searchUrl = `https://www.amazon.com/s?k=${encodeURIComponent(ebayTitle.substring(0, 120))}`
-      const { isCaptcha, results } = await loadAndExtract<SearchExtract>(win, searchUrl, AMAZON_SEARCH_EXTRACT)
+      const { isCaptcha, results } = await loadAndExtract<SearchExtract>(win, searchUrl, AMAZON_SEARCH_EXTRACT, SETTLE_AMAZON)
       if (!isCaptcha && results.length > 0) {
         // Use AI to pick the best match by image + title comparison
         const candidates = results.filter(r => r.asin !== asin)
@@ -464,7 +506,7 @@ async function checkAmazon(
   try {
     onStatus?.('No price found — searching for exact ASIN in results')
     const searchUrl = `https://www.amazon.com/s?k=${encodeURIComponent(ebayTitle.substring(0, 120))}`
-    const { isCaptcha, results } = await loadAndExtract<SearchExtract>(win, searchUrl, AMAZON_SEARCH_EXTRACT)
+    const { isCaptcha, results } = await loadAndExtract<SearchExtract>(win, searchUrl, AMAZON_SEARCH_EXTRACT, SETTLE_AMAZON)
     if (isCaptcha) return { ...base, sourceUrl: directUrl, method: 'error', error: 'Amazon CAPTCHA — try again later' }
     const exactMatch = results.find(r => r.asin === asin)
     if (exactMatch) {
@@ -583,7 +625,7 @@ async function checkYami(
   try {
     const url = `https://www.yami.com/item/${sku}/1/detail`
     onStatus?.(`Loading yami.com/item/${sku}`)
-    const data = await loadAndExtract<{ title: string | null; priceText: string | null; isAvailable: boolean; url: string }>(win, url, YAMI_PRODUCT_EXTRACT, 1500)
+    const data = await loadAndExtract<{ title: string | null; priceText: string | null; isAvailable: boolean; url: string }>(win, url, YAMI_PRODUCT_EXTRACT, SETTLE_YAMI)
     if (data.priceText) {
       const p = parsePrice(data.priceText)
       return { ...base, sourcePrice: p, sourceTitle: data.title, sourceUrl: url, isAvailable: data.isAvailable, multiplier: p && ebayPrice ? +(ebayPrice / p).toFixed(2) : null, method: 'direct' }
@@ -594,7 +636,7 @@ async function checkYami(
   try {
     onStatus?.('Searching Yami by title')
     const searchUrl = `https://www.yami.com/search/?q=${encodeURIComponent(ebayTitle.substring(0, 80))}`
-    const { results } = await loadAndExtract<{ results: Array<{ itemId: string; title: string | null; price: string | null; url: string }> }>(win, searchUrl, YAMI_SEARCH_EXTRACT, 1500)
+    const { results } = await loadAndExtract<{ results: Array<{ itemId: string; title: string | null; price: string | null; url: string }> }>(win, searchUrl, YAMI_SEARCH_EXTRACT, SETTLE_YAMI)
     const exactMatch = results.find(r => r.itemId === sku)
     const target = exactMatch || results.find(r => r.price)
     if (target) {
@@ -686,14 +728,14 @@ async function checkCostco(
   try {
     onStatus?.('Searching Costco by title')
     const searchUrl = `https://www.costco.com/Search?keyword=${encodeURIComponent(ebayTitle.substring(0, 80))}`
-    const { results } = await loadAndExtract<{ results: Array<{ title: string | null; price: string | null; url: string | null }> }>(win, searchUrl, COSTCO_SEARCH_EXTRACT, 2000)
+    const { results } = await loadAndExtract<{ results: Array<{ title: string | null; price: string | null; url: string | null }> }>(win, searchUrl, COSTCO_SEARCH_EXTRACT, SETTLE_COSTCO_SEARCH)
     const target = results.find(r => r.price)
     if (target?.url) {
       // Load the product page for accurate price + availability
       try {
         onStatus?.('Loading Costco product page')
         const productUrl = target.url.startsWith('http') ? target.url : `https://www.costco.com${target.url}`
-        const product = await loadAndExtract<{ title: string | null; priceText: string | null; isAvailable: boolean; url: string }>(win, productUrl, COSTCO_PRODUCT_EXTRACT, 2000)
+        const product = await loadAndExtract<{ title: string | null; priceText: string | null; isAvailable: boolean; url: string }>(win, productUrl, COSTCO_PRODUCT_EXTRACT, SETTLE_COSTCO_PRODUCT)
         if (product.priceText) {
           const p = parsePrice(product.priceText)
           return { ...base, sourcePrice: p, sourceTitle: product.title || target.title, sourceUrl: productUrl, isAvailable: product.isAvailable, multiplier: p && ebayPrice ? +(ebayPrice / p).toFixed(2) : null, method: 'search' }
@@ -754,45 +796,69 @@ export async function checkListingPrices(
   const checkable = listings.filter(l => isCheckable(l.sku))
   const results: PriceCheckResult[] = new Array(checkable.length)
   let completed = 0
-  let nextIndex = 0
 
-  // Stagger worker starts so they don't all hit the same domain at the same instant.
-  // Worker 0 starts immediately, worker 1 after STAGGER_DELAY, etc.
-  // This spreads requests over POOL_SIZE * STAGGER_DELAY ms instead of all at once.
-  const workers = Array.from({ length: Math.min(POOL_SIZE, checkable.length) }, async (_, workerSlot) => {
-    if (workerSlot > 0) await delay(workerSlot * STAGGER_DELAY)
+  // Partition items by source domain so each worker pool stays on its own domain.
+  // This keeps session cookies active, avoids cross-domain context switching, and
+  // lets each domain's rate limit budget be managed independently.
+  const domainQueues: Record<'amazon' | 'yami' | 'costco', number[]> = { amazon: [], yami: [], costco: [] }
+  for (let i = 0; i < checkable.length; i++) {
+    const src = detectSource(checkable[i].sku)
+    if (src === 'amazon' || src === 'yami' || src === 'costco') domainQueues[src].push(i)
+  }
 
-    while (!abortFlag) {
-      const i = nextIndex++
-      if (i >= checkable.length) break
+  // Dynamic worker allocation: give idle domain slots back to Amazon rather than
+  // wasting them. Yami/Costco get their fixed slots only when they actually have items.
+  // Amazon is hard-capped at TOTAL_POOL_SIZE (8) to stay within Amazon's rate-limit budget.
+  const hasAmazon = domainQueues.amazon.length > 0
+  const hasYami   = domainQueues.yami.length > 0
+  const hasCostco = domainQueues.costco.length > 0
+  const reservedYami   = hasYami   ? YAMI_POOL_SIZE   : 0
+  const reservedCostco = hasCostco ? COSTCO_POOL_SIZE : 0
+  const amazonWorkerCount = hasAmazon
+    ? Math.min(TOTAL_POOL_SIZE - reservedYami - reservedCostco, configAmazonPoolSize, domainQueues.amazon.length)
+    : 0
 
-      const listing = checkable[i]
-      const win = getOrCreateScraperWindow(workerSlot)
-      if (win.isDestroyed()) break  // window was closed (abort or crash) — stop this worker
-
-      onProgress?.({ current: completed, total: checkable.length, sku: listing.sku, status: `[w${workerSlot + 1}] Checking...` })
-
-      results[i] = await checkSingleListing(
-        listing.sku,
-        listing.listingId,
-        listing.title,
-        listing.price.value,
-        listing.imageUrl ?? null,
-        (status) => onProgress?.({ current: completed, total: checkable.length, sku: listing.sku, status: `[w${workerSlot + 1}] ${status}` }),
-        win
-      )
-
-      completed++
-      onResult?.(results[i])
-      onProgress?.({ current: completed, total: checkable.length, sku: listing.sku, status: 'Done' })
-
-      if (!abortFlag && nextIndex < checkable.length) {
-        await delay(INTER_REQUEST_DELAY)
+  // Build workers for one domain's sub-pool. Workers within a domain share a queue index
+  // counter so they naturally load-balance without duplicate work.
+  // sessionPartition is passed explicitly so extra Amazon slots (5-7) get the Amazon
+  // session and share the login cookies even when they overflow the base Amazon pool.
+  const createDomainWorkers = (indices: number[], poolStart: number, poolSize: number, sessionPartition: string) => {
+    const workerCount = Math.min(poolSize, indices.length)
+    if (workerCount === 0) return []
+    let nextQueueIdx = 0
+    return Array.from({ length: workerCount }, async (_, w) => {
+      const slot = poolStart + w
+      if (w > 0) await delay(w * STAGGER_DELAY)
+      while (!abortFlag) {
+        const qi = nextQueueIdx++
+        if (qi >= indices.length) break
+        const i = indices[qi]
+        const listing = checkable[i]
+        const win = getOrCreateScraperWindow(slot, sessionPartition)
+        if (win.isDestroyed()) break
+        onProgress?.({ current: completed, total: checkable.length, sku: listing.sku, status: `[w${slot + 1}] Checking...` })
+        results[i] = await checkSingleListing(
+          listing.sku,
+          listing.listingId,
+          listing.title,
+          listing.price.value,
+          listing.imageUrl ?? null,
+          (status) => onProgress?.({ current: completed, total: checkable.length, sku: listing.sku, status: `[w${slot + 1}] ${status}` }),
+          win
+        )
+        completed++
+        onResult?.(results[i])
+        onProgress?.({ current: completed, total: checkable.length, sku: listing.sku, status: 'Done' })
+        if (!abortFlag && nextQueueIdx < indices.length) await delay(INTER_REQUEST_DELAY)
       }
-    }
-  })
+    })
+  }
 
-  await Promise.all(workers)
+  await Promise.all([
+    ...createDomainWorkers(domainQueues.amazon, 0,                                 amazonWorkerCount, SESSION_AMAZON),
+    ...createDomainWorkers(domainQueues.yami,   AMAZON_POOL_SIZE,                  reservedYami,      SESSION_YAMI),
+    ...createDomainWorkers(domainQueues.costco, AMAZON_POOL_SIZE + YAMI_POOL_SIZE, reservedCostco,    SESSION_COSTCO),
+  ])
 
   onProgress?.({ current: checkable.length, total: checkable.length, sku: '', status: 'Done' })
 

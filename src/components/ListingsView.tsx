@@ -460,7 +460,16 @@ function PriceCheckerPanel({ listings, accountId }: { listings: EbayListing[]; a
       : savedFilter === 'oos'
         ? persistedFailures.filter(f => f.failureReason === 'unavailable' || f.failureReason === 'both')
         : persistedFailures.filter(f => f.failureReason === savedFilter)
-    // Sort: OOS/both most critical, then price, then error
+    if (savedFilter === 'price') {
+      // Low Margin tab: show worst margin first (lowest multiplier at top)
+      return [...filtered].sort((a, b) => {
+        if (a.multiplier === null && b.multiplier === null) return 0
+        if (a.multiplier === null) return 1
+        if (b.multiplier === null) return -1
+        return a.multiplier - b.multiplier
+      })
+    }
+    // Default sort: OOS/both most critical, then price, then error
     const order: Record<string, number> = { unavailable: 0, both: 0, price: 1, error: 2 }
     return [...filtered].sort((a, b) => (order[a.failureReason] ?? 2) - (order[b.failureReason] ?? 2))
   }, [persistedFailures, savedFilter])
@@ -571,7 +580,7 @@ function PriceCheckerPanel({ listings, accountId }: { listings: EbayListing[]; a
     } catch { /* non-critical */ }
   }
 
-  const handleRun = async () => {
+  const handleRun = async (forceRescan = false) => {
     setIsRunning(true)
     setError(null)
     setResults(null)
@@ -587,7 +596,8 @@ function PriceCheckerPanel({ listings, accountId }: { listings: EbayListing[]; a
           title: l.title,
           price: l.price,
           imageUrl: l.imageUrl ?? null,
-        }))
+        })),
+        forceRescan
       ) as AmazonPriceCheckBatch
       setResults(batch.results)
       setCachedCount(batch.cachedCount ?? 0)
@@ -671,6 +681,46 @@ function PriceCheckerPanel({ listings, accountId }: { listings: EbayListing[]; a
       setFixResults((prev) => new Map(prev).set(sku, { success: false, sku, error: (err as Error).message }))
     } finally {
       setFixingSkus((prev) => { const s = new Set(prev); s.delete(sku); return s })
+    }
+  }
+
+  const handleRemoveFromSaved = async (sku: string) => {
+    // Remove from UI + disk, and delete the cache entry so the next scan re-checks it fresh
+    await pruneFixedFromPersisted([sku])
+    try { await window.electronAPI.clearPriceCheckCacheEntries(accountId, [sku]) } catch { /* non-critical */ }
+  }
+
+  const handleAutoEndCurrentPage = async () => {
+    const items = savedPageData.filter(f => f.failureReason === 'unavailable' || f.failureReason === 'both')
+    if (items.length === 0) return
+    setIsAutoFixing(true)
+    setAutoFixProgress(null)
+    try {
+      const payload = items.map(f => ({ sku: f.sku, sourcePrice: f.sourcePrice, failureReason: 'unavailable' as const }))
+      const { results: batchResults } = await window.electronAPI.autoFixListings(accountId, payload, targetMultiplier)
+      await pruneFixedFromPersisted(batchResults.filter(r => r.success).map(r => r.sku))
+    } catch (err) {
+      console.error('Auto end page failed:', err)
+    } finally {
+      setIsAutoFixing(false)
+      setAutoFixProgress(null)
+    }
+  }
+
+  const handleAutoUpdateCurrentPage = async () => {
+    const items = savedPageData.filter(f => (f.failureReason === 'price' || f.failureReason === 'both') && f.sourcePrice !== null)
+    if (items.length === 0) return
+    setIsAutoFixing(true)
+    setAutoFixProgress(null)
+    try {
+      const payload = items.map(f => ({ sku: f.sku, sourcePrice: f.sourcePrice, failureReason: 'price' as const }))
+      const { results: batchResults } = await window.electronAPI.autoFixListings(accountId, payload, targetMultiplier)
+      await pruneFixedFromPersisted(batchResults.filter(r => r.success).map(r => r.sku))
+    } catch (err) {
+      console.error('Auto update page failed:', err)
+    } finally {
+      setIsAutoFixing(false)
+      setAutoFixProgress(null)
     }
   }
 
@@ -816,14 +866,25 @@ function PriceCheckerPanel({ listings, accountId }: { listings: EbayListing[]; a
             </button>
 
             {!isRunning ? (
-              <button
-                onClick={handleRun}
-                disabled={filteredCheckableListings.length === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <Play className="w-3.5 h-3.5" />
-                Check {filteredCheckableListings.length} {sourceFilter === 'all' ? '' : sourceFilter.charAt(0).toUpperCase() + sourceFilter.slice(1) + ' '}Listings
-              </button>
+              <>
+                <button
+                  onClick={() => handleRun(false)}
+                  disabled={filteredCheckableListings.length === 0}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  Continue Scan ({filteredCheckableListings.length})
+                </button>
+                <button
+                  onClick={() => handleRun(true)}
+                  disabled={filteredCheckableListings.length === 0}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Re-scan all items regardless of cache — ignores the 7-day skip window"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Force Rescan
+                </button>
+              </>
             ) : (
               <button
                 onClick={handleAbort}
@@ -1168,6 +1229,33 @@ function PriceCheckerPanel({ listings, accountId }: { listings: EbayListing[]; a
                     </span>
                   </div>
 
+                  {/* Per-tab action buttons for current page */}
+                  {savedFilter === 'oos' && savedPageData.length > 0 && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <button
+                        onClick={handleAutoEndCurrentPage}
+                        disabled={isAutoFixing || fixingSkus.size > 0}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {isAutoFixing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                        Auto End Listing ({savedPageData.filter(f => f.failureReason === 'unavailable' || f.failureReason === 'both').length} on this page)
+                      </button>
+                    </div>
+                  )}
+                  {savedFilter === 'price' && savedPageData.length > 0 && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs text-gray-400">Sorted by lowest Mult. first</span>
+                      <button
+                        onClick={handleAutoUpdateCurrentPage}
+                        disabled={isAutoFixing || fixingSkus.size > 0 || savedPageData.filter(f => f.sourcePrice !== null).length === 0}
+                        className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {isAutoFixing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <DollarSign className="w-3.5 h-3.5" />}
+                        Auto Update Price ({savedPageData.filter(f => f.sourcePrice !== null).length} on this page)
+                      </button>
+                    </div>
+                  )}
+
                 <div className="border border-yellow-200 rounded-lg overflow-hidden">
                   <table className="w-full text-xs border-collapse">
                     <thead>
@@ -1195,6 +1283,9 @@ function PriceCheckerPanel({ listings, accountId }: { listings: EbayListing[]; a
                                   {f.ebayTitle.slice(0, 40)}…
                                 </span>
                               )}
+                              <span className="block text-[10px] text-gray-300 mt-0.5" title={f.checkedAt}>
+                                scanned {formatRelativeTime(f.checkedAt)}
+                              </span>
                             </td>
                             <td className="px-3 py-2">
                               <span className={`px-1.5 py-0.5 rounded font-medium ${sourceColor(f.listingSource)}`}>
@@ -1241,16 +1332,25 @@ function PriceCheckerPanel({ listings, accountId }: { listings: EbayListing[]; a
                             </td>
                             <td className="px-3 py-2 min-w-[180px]">
                               {fixResult ? (
-                                fixResult.success ? (
-                                  <span className="text-green-600 flex items-center gap-1 font-medium">
-                                    <CheckCircle className="w-3 h-3" />
-                                    {fixResult.newPrice ? `→ ${formatCurrency(fixResult.newPrice)}` : 'Ended'}
-                                  </span>
-                                ) : (
-                                  <span className="text-red-500 truncate block max-w-[160px]" title={fixResult.error}>
-                                    {fixResult.error?.slice(0, 50)}
-                                  </span>
-                                )
+                                <div className="flex flex-col gap-1">
+                                  {fixResult.success ? (
+                                    <span className="text-green-600 flex items-center gap-1 font-medium">
+                                      <CheckCircle className="w-3 h-3" />
+                                      {fixResult.newPrice ? `→ ${formatCurrency(fixResult.newPrice)}` : 'Ended'}
+                                    </span>
+                                  ) : (
+                                    <span className="text-red-500 truncate block max-w-[160px]" title={fixResult.error}>
+                                      {fixResult.error?.slice(0, 50)}
+                                    </span>
+                                  )}
+                                  <button
+                                    onClick={() => handleRemoveFromSaved(f.sku)}
+                                    className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 text-gray-500 rounded hover:bg-gray-200 transition-colors w-fit"
+                                    title="Remove from list and clear cache so it re-scans next time"
+                                  >
+                                    <Minus className="w-3 h-3" /> Remove
+                                  </button>
+                                </div>
                               ) : (
                                 <div className="flex gap-1 flex-wrap">
                                   <button
@@ -1270,6 +1370,14 @@ function PriceCheckerPanel({ listings, accountId }: { listings: EbayListing[]; a
                                   >
                                     {fixing ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
                                     End Listing
+                                  </button>
+                                  <button
+                                    onClick={() => handleRemoveFromSaved(f.sku)}
+                                    disabled={fixing || isAutoFixing}
+                                    className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 text-gray-500 rounded hover:bg-gray-200 disabled:opacity-40 transition-colors"
+                                    title="Mark as manually fixed — removes from list and clears cache so it re-scans next time"
+                                  >
+                                    <Minus className="w-3 h-3" /> Remove
                                   </button>
                                 </div>
                               )}

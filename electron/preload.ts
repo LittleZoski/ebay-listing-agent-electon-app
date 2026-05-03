@@ -218,8 +218,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listListingExports: (accountId?: string) => ipcRenderer.invoke('list-listing-exports', accountId),
 
   // Amazon Price Checker
-  checkAmazonPrices: (accountId: string, listings: Array<{ sku: string; listingId: string; title: string; price: { value: string }; imageUrl?: string | null }>) =>
-    ipcRenderer.invoke('check-amazon-prices', accountId, listings),
+  checkAmazonPrices: (accountId: string, listings: Array<{ sku: string; listingId: string; title: string; price: { value: string }; imageUrl?: string | null }>, forceRescan?: boolean) =>
+    ipcRenderer.invoke('check-amazon-prices', accountId, listings, forceRescan ?? false),
   abortAmazonPriceCheck: () => ipcRenderer.invoke('abort-amazon-price-check'),
   openAmazonLogin: () => ipcRenderer.invoke('open-amazon-login'),
   onAmazonPriceCheckProgress: (callback: (data: AmazonPriceCheckProgress) => void) => {
@@ -234,6 +234,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('save-price-check-failures', accountId, data),
   loadPriceCheckFailures: (accountId: string) =>
     ipcRenderer.invoke('load-price-check-failures', accountId),
+  clearPriceCheckCacheEntries: (accountId: string, skus: string[]) =>
+    ipcRenderer.invoke('clear-price-check-cache-entries', accountId, skus),
 
   // eBay listing updates
   updateListingPrice: (accountId: string, sku: string, sourcePrice: number, multiplier?: number) =>
@@ -329,7 +331,8 @@ export interface ElectronAPI {
   // Amazon Price Checker
   checkAmazonPrices: (
     accountId: string,
-    listings: Array<{ sku: string; listingId: string; title: string; price: { value: string }; imageUrl?: string | null }>
+    listings: Array<{ sku: string; listingId: string; title: string; price: { value: string }; imageUrl?: string | null }>,
+    forceRescan?: boolean
   ) => Promise<AmazonPriceCheckBatch>
   abortAmazonPriceCheck: () => Promise<{ success: boolean }>
   openAmazonLogin: () => Promise<{ success: boolean }>
@@ -337,6 +340,7 @@ export interface ElectronAPI {
   onAutoFixProgress: (callback: (data: AutoFixProgress) => void) => () => void
   savePriceCheckFailures: (accountId: string, data: PersistedFailures) => Promise<{ success: boolean }>
   loadPriceCheckFailures: (accountId: string) => Promise<PersistedFailures | null>
+  clearPriceCheckCacheEntries: (accountId: string, skus: string[]) => Promise<{ success: boolean }>
 
   // eBay listing updates
   updateListingPrice: (accountId: string, sku: string, sourcePrice: number, multiplier?: number) => Promise<ListingUpdateResult>

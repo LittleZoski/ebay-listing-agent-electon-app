@@ -43,6 +43,7 @@ import {
   showAmazonLoginWindow,
   closeScraperWindow,
   setAiApiKey,
+  setScannerConfig,
   PriceCheckBatch,
   PriceCheckProgress,
   PriceCheckResult,
@@ -238,6 +239,9 @@ interface GlobalSettings {
 
   // Category Selection Settings
   categoryCandidatesTopK: number
+
+  // Listing Scanner Settings
+  amazonPoolSize: number
 }
 
 interface AccountsData {
@@ -319,6 +323,9 @@ function getDefaultGlobalSettings(): GlobalSettings {
 
     // Category Selection Settings
     categoryCandidatesTopK: 3,
+
+    // Listing Scanner Settings
+    amazonPoolSize: 5,
   }
 }
 
@@ -1312,18 +1319,26 @@ ipcMain.handle(
   async (
     _event: Electron.IpcMainInvokeEvent,
     accountId: string,
-    listings: Array<{ sku: string; listingId: string; title: string; price: { value: string }; imageUrl?: string | null }>
+    listings: Array<{ sku: string; listingId: string; title: string; price: { value: string }; imageUrl?: string | null }>,
+    forceRescan = false
   ): Promise<PriceCheckBatch> => {
     initPaths()
-    // Provide the AI API key so the price checker can use Claude for best-match selection
+    // Push global settings into the scanner before running
     try {
       const accountsData = JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf8'))
-      const apiKey = accountsData?.globalSettings?.anthropicApiKey
-      if (apiKey) setAiApiKey(apiKey)
-    } catch { /* ignore — AI matching is optional */ }
+      const gs = accountsData?.globalSettings
+      if (gs?.anthropicApiKey) setAiApiKey(gs.anthropicApiKey)
+      if (gs?.amazonPoolSize) setScannerConfig({ amazonPoolSize: gs.amazonPoolSize })
+    } catch { /* ignore — scanner settings are optional */ }
 
-    // Load 48-hour cache and split listings into cached vs needs-scan
+    // Load cache and split listings into cached vs needs-scan.
+    // forceRescan=true explicitly deletes cache entries for all listed SKUs so they
+    // are guaranteed to be re-scanned regardless of TTL.
     const cache = loadPriceCheckCache(accountId)
+    if (forceRescan) {
+      for (const l of listings) delete cache[l.sku]
+      savePriceCheckCache(accountId, cache)
+    }
     const now = Date.now()
     const cachedResults: PriceCheckResult[] = []
     const toScan = listings.filter(l => {
@@ -1409,6 +1424,20 @@ ipcMain.handle(
       return JSON.parse(fs.readFileSync(filePath, 'utf8'))
     } catch {
       return null
+    }
+  }
+)
+
+ipcMain.handle(
+  'clear-price-check-cache-entries',
+  async (_event: Electron.IpcMainInvokeEvent, accountId: string, skus: string[]) => {
+    try {
+      const cache = loadPriceCheckCache(accountId)
+      for (const sku of skus) delete cache[sku]
+      savePriceCheckCache(accountId, cache)
+      return { success: true }
+    } catch {
+      return { success: false }
     }
   }
 )

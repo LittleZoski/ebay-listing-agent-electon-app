@@ -82,6 +82,9 @@ interface GlobalSettings {
 
   // Category Selection Settings
   categoryCandidatesTopK: number
+
+  // Listing Scanner Settings
+  amazonPoolSize: number
 }
 
 export function Settings() {
@@ -341,6 +344,35 @@ export function Settings() {
             <label htmlFor="parallelProcessing" className="text-sm text-gray-700 dark:text-slate-300">
               Enable parallel processing (faster but uses more API calls)
             </label>
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* Listing Scanner Section */}
+      <SettingsSection
+        title="Listing Scanner"
+        icon={<RefreshCw className="w-5 h-5" />}
+        isExpanded={expandedSections.has('scanner')}
+        onToggle={() => toggleSection('scanner')}
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                Amazon Parallel Windows
+              </label>
+              <input
+                type="number"
+                value={localSettings.amazonPoolSize}
+                onChange={(e) => updateField('amazonPoolSize', Math.max(1, Math.min(8, parseInt(e.target.value) || 5)))}
+                min={1}
+                max={8}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                Concurrent browser windows for Amazon price scanning (1–8). Higher = faster scans but more risk of Amazon CAPTCHA blocks. Default: 5.
+              </p>
+            </div>
           </div>
         </div>
       </SettingsSection>
